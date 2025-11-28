@@ -122,45 +122,80 @@ function UserGuide() {
   };
 
   const processHtmlContent = (html, toc) => {
-    // Remove Contents section from the main content
-    html = html.replace(/(<(?:h[1-6]|p)[^>]*>\s*Contents?\s*<\/(?:h[1-6]|p)>[\s\S]*?)(?=<(?:h[1-6]|p)[^>]*>\s*\d+\.\s+[A-Z])/i, '');
+    // Find and remove the entire Contents section (first 3 pages)
+    // Look for "Contents" heading and remove everything until we hit the first main section
+    const contentsStart = html.search(/<(?:h[1-6]|p)[^>]*>\s*Contents?\s*<\/(?:h[1-6]|p)>/i);
     
-    // Also remove table of contents entries from content
-    html = html.replace(/<p[^>]*>\s*\d+(?:\.\d+)*\.\s+[^\d\n]+?\s+\d+\s*<\/p>/g, '');
+    if (contentsStart !== -1) {
+      // Find where the actual content starts (first numbered section like "1. Introduction")
+      const firstSectionPattern = /<(?:h[1-6]|p)[^>]*>\s*1\.\s+[A-Z][a-z]+/i;
+      const firstSectionStart = html.substring(contentsStart).search(firstSectionPattern);
+      
+      if (firstSectionStart !== -1) {
+        // Remove everything from "Contents" to just before first section
+        html = html.substring(0, contentsStart) + html.substring(contentsStart + firstSectionStart);
+      }
+    }
+    
+    // Remove any remaining TOC entries that might be scattered
+    // Pattern: "1. Introduction 4" or "1.1. Background 4" (number at end is page number)
+    html = html.replace(/<p[^>]*>\s*\d+(?:\.\d+)*\.\s+[^<]+?\s+\d+\s*<\/p>/g, '');
+    
+    // Also remove lines that are just section numbers with titles and page numbers in italic
+    html = html.replace(/<p[^>]*><(?:i|em)[^>]*>\s*\d+(?:\.\d+)*\.\s+[^<]+?\s+\d+\s*<\/(?:i|em)><\/p>/g, '');
+    
+    // Remove standalone "Contents" heading if still present
+    html = html.replace(/<(?:h[1-6]|p)[^>]*>\s*Contents?\s*<\/(?:h[1-6]|p)>/gi, '');
 
     // Inject section markers based on extracted TOC
     toc.forEach(section => {
-      // Create more flexible pattern to match section headings
+      // Create more flexible pattern to match section headings in actual content
+      // Important: Only match headings that appear AFTER the Contents section
       const patterns = [
-        // Pattern 1: <h1-6>1. Introduction</h1-6>
-        new RegExp(`<(h[1-6]|p)[^>]*>\\s*${section.number}\\.?\\s+${escapeRegex(section.title)}\\s*</\\1>`, 'gi'),
-        // Pattern 2: <p>1. Introduction</p>
-        new RegExp(`<p[^>]*>\\s*${section.number}\\.?\\s+${escapeRegex(section.title)}\\s*</p>`, 'gi'),
-        // Pattern 3: More lenient matching
-        new RegExp(`<(?:h[1-6]|p)[^>]*>\\s*${section.number}\\.?\\s+${escapeRegex(section.title)}[^<]*</(?:h[1-6]|p)>`, 'gi')
+        // Pattern 1: Exact match with heading tags
+        new RegExp(`<(h[1-6])[^>]*>\\s*${section.number}\\.?\\s+${escapeRegex(section.title)}\\s*</\\1>`, 'gi'),
+        // Pattern 2: Match in paragraph that looks like a heading (bold, larger text)
+        new RegExp(`<p[^>]*>\\s*<(?:b|strong)[^>]*>\\s*${section.number}\\.?\\s+${escapeRegex(section.title)}\\s*</(?:b|strong)>\\s*</p>`, 'gi'),
+        // Pattern 3: Plain paragraph format
+        new RegExp(`<p[^>]*>\\s*${section.number}\\.?\\s+${escapeRegex(section.title)}\\s*</p>`, 'gi')
       ];
       
+      let replaced = false;
       for (const pattern of patterns) {
-        const replaced = html.replace(pattern, `<div id="${section.id}" class="section-marker"><h2 class="section-heading">${section.number}. ${section.title}</h2></div>`);
-        if (replaced !== html) {
-          html = replaced;
+        const newHtml = html.replace(pattern, (match) => {
+          // Make sure this isn't in the Contents section we're trying to remove
+          if (!replaced) {
+            replaced = true;
+            return `<div id="${section.id}" class="section-marker"><h2 class="section-heading">${section.number}. ${section.title}</h2></div>`;
+          }
+          return ''; // Remove duplicate occurrences
+        });
+        if (newHtml !== html) {
+          html = newHtml;
           break;
         }
       }
 
       // Process children
-      if (section.children) {
+      if (section.children && section.children.length > 0) {
         section.children.forEach(child => {
           const childPatterns = [
-            new RegExp(`<(h[1-6]|p)[^>]*>\\s*${child.number}\\.?\\s+${escapeRegex(child.title)}\\s*</\\1>`, 'gi'),
-            new RegExp(`<p[^>]*>\\s*${child.number}\\.?\\s+${escapeRegex(child.title)}\\s*</p>`, 'gi'),
-            new RegExp(`<(?:h[1-6]|p)[^>]*>\\s*${child.number}\\.?\\s+${escapeRegex(child.title)}[^<]*</(?:h[1-6]|p)>`, 'gi')
+            new RegExp(`<(h[1-6])[^>]*>\\s*${child.number}\\.?\\s+${escapeRegex(child.title)}\\s*</\\1>`, 'gi'),
+            new RegExp(`<p[^>]*>\\s*<(?:b|strong)[^>]*>\\s*${child.number}\\.?\\s+${escapeRegex(child.title)}\\s*</(?:b|strong)>\\s*</p>`, 'gi'),
+            new RegExp(`<p[^>]*>\\s*${child.number}\\.?\\s+${escapeRegex(child.title)}\\s*</p>`, 'gi')
           ];
           
+          let childReplaced = false;
           for (const pattern of childPatterns) {
-            const replaced = html.replace(pattern, `<div id="${child.id}" class="section-marker subsection-marker"><h3 class="subsection-heading">${child.number}. ${child.title}</h3></div>`);
-            if (replaced !== html) {
-              html = replaced;
+            const newHtml = html.replace(pattern, (match) => {
+              if (!childReplaced) {
+                childReplaced = true;
+                return `<div id="${child.id}" class="section-marker subsection-marker"><h3 class="subsection-heading">${child.number}. ${child.title}</h3></div>`;
+              }
+              return ''; // Remove duplicate occurrences
+            });
+            if (newHtml !== html) {
+              html = newHtml;
               break;
             }
           }
