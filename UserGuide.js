@@ -15,7 +15,6 @@ function UserGuide() {
   }, []);
 
   useEffect(() => {
-    // Initialize all parent sections as expanded when TOC is loaded
     if (tableOfContents.length > 0) {
       const initialExpanded = {};
       tableOfContents.forEach(section => {
@@ -25,197 +24,197 @@ function UserGuide() {
       });
       setExpandedSections(initialExpanded);
       
-      // Set first section as active
       if (tableOfContents[0]) {
         setActiveSection(tableOfContents[0].id);
       }
     }
   }, [tableOfContents]);
 
-  const extractTableOfContents = (html) => {
+  const extractTableOfContentsFromHTML = (html) => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
     const toc = [];
+    const tocMap = new Map();
     
-    // Find the Contents section - look for patterns like "Contents" heading followed by numbered entries
-    const contentsRegex = /Contents[\s\S]*?(?=<h[1-6]|<p[^>]*>\s*\d+\.\s+[A-Z])/i;
-    const contentsMatch = html.match(contentsRegex);
+    // Find all paragraphs and headings in the document
+    const allElements = doc.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
     
-    if (!contentsMatch) {
-      // Fallback: try to extract from numbered paragraphs/headings throughout document
-      return extractFromDocument(html);
-    }
-
-    const contentsSection = contentsMatch[0];
+    // Pattern to match numbered sections like "1. Introduction" or "1.1. Background"
+    const sectionPattern = /^(\d+(?:\.\d+)*)\.\s+(.+)$/;
     
-    // Extract entries like "1. Introduction 4" or "1.1. Background 4"
-    const entryRegex = /(\d+(?:\.\d+)*)\.\s+([^\d\n]+?)\s+(\d+)/g;
-    let match;
+    let contentsEnded = false;
+    let contentsStarted = false;
     
-    while ((match = entryRegex.exec(contentsSection)) !== null) {
-      const number = match[1];
-      const title = match[2].trim();
-      const pageNumber = match[3];
+    allElements.forEach((element) => {
+      const text = element.textContent.trim();
       
-      // Determine level based on number of dots
-      const level = number.split('.').length;
-      const id = `section-${number.replace(/\./g, '-')}`;
-      
-      if (level === 1) {
-        // Parent section
-        toc.push({
-          id,
-          number,
-          title,
-          level,
-          pageNumber,
-          children: []
-        });
-      } else if (level === 2 && toc.length > 0) {
-        // Child section - add to last parent
-        toc[toc.length - 1].children.push({
-          id,
-          number,
-          title,
-          level,
-          pageNumber
-        });
+      // Check if this is the "Contents" heading
+      if (/^Contents?$/i.test(text)) {
+        contentsStarted = true;
+        return;
       }
-    }
-    
-    return toc;
-  };
-
-  const extractFromDocument = (html) => {
-    // Fallback method: extract from document structure
-    const toc = [];
-    
-    // Look for patterns like "<p>1. Introduction</p>" or "<h2>1. Introduction</h2>"
-    const headingRegex = /<(?:h[1-6]|p)[^>]*>\s*(\d+(?:\.\d+)*)\.\s+([^<]+)<\/(?:h[1-6]|p)>/gi;
-    let match;
-    
-    const entries = [];
-    while ((match = headingRegex.exec(html)) !== null) {
-      const number = match[1];
-      const title = match[2].trim();
-      const level = number.split('.').length;
       
-      entries.push({
-        number,
-        title,
-        level,
-        id: `section-${number.replace(/\./g, '-')}`
-      });
-    }
-    
-    // Build hierarchy
-    entries.forEach(entry => {
-      if (entry.level === 1) {
-        toc.push({
-          ...entry,
-          children: []
-        });
-      } else if (entry.level === 2 && toc.length > 0) {
-        toc[toc.length - 1].children.push(entry);
+      // If we haven't found contents yet and we see section 1, mark contents as ended
+      if (!contentsEnded && /^1\.\s+[A-Z]/.test(text)) {
+        contentsEnded = true;
+      }
+      
+      const match = text.match(sectionPattern);
+      
+      if (match) {
+        const number = match[1];
+        let title = match[2].trim();
+        
+        // Remove page numbers from the end (e.g., "Introduction 4" -> "Introduction")
+        title = title.replace(/\s+\d+$/, '').trim();
+        
+        // Skip if title is empty after cleanup
+        if (!title) return;
+        
+        // Determine level based on dots in number
+        const level = number.split('.').length;
+        
+        // Only include up to level 2 (1.1, 1.2, etc.)
+        if (level > 2) return;
+        
+        const id = `section-${number.replace(/\./g, '-')}`;
+        
+        const entry = {
+          id,
+          number,
+          title,
+          level,
+          element: element.cloneNode(true)
+        };
+        
+        tocMap.set(id, entry);
+        
+        if (level === 1) {
+          toc.push({
+            ...entry,
+            children: []
+          });
+        } else if (level === 2 && toc.length > 0) {
+          toc[toc.length - 1].children.push(entry);
+        }
       }
     });
     
+    console.log('Extracted TOC:', toc);
     return toc;
   };
 
   const processHtmlContent = (html, toc) => {
-    // Find and remove the entire Contents section (first 3 pages)
-    // Look for "Contents" heading and remove everything until we hit the first main section
-    const contentsStart = html.search(/<(?:h[1-6]|p)[^>]*>\s*Contents?\s*<\/(?:h[1-6]|p)>/i);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
     
-    if (contentsStart !== -1) {
-      // Find where the actual content starts (first numbered section like "1. Introduction")
-      const firstSectionPattern = /<(?:h[1-6]|p)[^>]*>\s*1\.\s+[A-Z][a-z]+/i;
-      const firstSectionStart = html.substring(contentsStart).search(firstSectionPattern);
+    // Remove the entire Contents section
+    let contentsFound = false;
+    let firstSectionFound = false;
+    const elementsToRemove = [];
+    
+    const allElements = doc.body.querySelectorAll('*');
+    
+    allElements.forEach((element) => {
+      const text = element.textContent.trim();
       
-      if (firstSectionStart !== -1) {
-        // Remove everything from "Contents" to just before first section
-        html = html.substring(0, contentsStart) + html.substring(contentsStart + firstSectionStart);
+      // Mark when we find "Contents"
+      if (/^Contents?$/i.test(text)) {
+        contentsFound = true;
+        elementsToRemove.push(element);
+        return;
       }
-    }
-    
-    // Remove any remaining TOC entries that might be scattered
-    // Pattern: "1. Introduction 4" or "1.1. Background 4" (number at end is page number)
-    html = html.replace(/<p[^>]*>\s*\d+(?:\.\d+)*\.\s+[^<]+?\s+\d+\s*<\/p>/g, '');
-    
-    // Also remove lines that are just section numbers with titles and page numbers in italic
-    html = html.replace(/<p[^>]*><(?:i|em)[^>]*>\s*\d+(?:\.\d+)*\.\s+[^<]+?\s+\d+\s*<\/(?:i|em)><\/p>/g, '');
-    
-    // Remove standalone "Contents" heading if still present
-    html = html.replace(/<(?:h[1-6]|p)[^>]*>\s*Contents?\s*<\/(?:h[1-6]|p)>/gi, '');
-
-    // Inject section markers based on extracted TOC
-    toc.forEach(section => {
-      // Create more flexible pattern to match section headings in actual content
-      // Important: Only match headings that appear AFTER the Contents section
-      const patterns = [
-        // Pattern 1: Exact match with heading tags
-        new RegExp(`<(h[1-6])[^>]*>\\s*${section.number}\\.?\\s+${escapeRegex(section.title)}\\s*</\\1>`, 'gi'),
-        // Pattern 2: Match in paragraph that looks like a heading (bold, larger text)
-        new RegExp(`<p[^>]*>\\s*<(?:b|strong)[^>]*>\\s*${section.number}\\.?\\s+${escapeRegex(section.title)}\\s*</(?:b|strong)>\\s*</p>`, 'gi'),
-        // Pattern 3: Plain paragraph format
-        new RegExp(`<p[^>]*>\\s*${section.number}\\.?\\s+${escapeRegex(section.title)}\\s*</p>`, 'gi')
-      ];
       
-      let replaced = false;
-      for (const pattern of patterns) {
-        const newHtml = html.replace(pattern, (match) => {
-          // Make sure this isn't in the Contents section we're trying to remove
-          if (!replaced) {
-            replaced = true;
-            return `<div id="${section.id}" class="section-marker"><h2 class="section-heading">${section.number}. ${section.title}</h2></div>`;
-          }
-          return ''; // Remove duplicate occurrences
-        });
-        if (newHtml !== html) {
-          html = newHtml;
-          break;
+      // If we're in contents section, mark elements for removal
+      if (contentsFound && !firstSectionFound) {
+        // Check if this is the start of actual content (section 1)
+        if (/^1\.\s+[A-Z]/.test(text) && !text.match(/\s+\d+$/)) {
+          firstSectionFound = true;
+        } else {
+          elementsToRemove.push(element);
         }
       }
-
+    });
+    
+    // Remove marked elements
+    elementsToRemove.forEach(el => {
+      if (el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    });
+    
+    // Now inject section IDs into the actual content sections
+    const bodyElements = doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
+    
+    toc.forEach(section => {
+      const pattern = new RegExp(`^${section.number}\\.\\s+${section.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+      
+      bodyElements.forEach(element => {
+        const text = element.textContent.trim();
+        if (pattern.test(text)) {
+          const wrapper = doc.createElement('div');
+          wrapper.id = section.id;
+          wrapper.className = 'section-marker';
+          
+          const heading = doc.createElement('h2');
+          heading.className = 'section-heading';
+          heading.textContent = `${section.number}. ${section.title}`;
+          
+          wrapper.appendChild(heading);
+          
+          if (element.parentNode) {
+            element.parentNode.replaceChild(wrapper, element);
+          }
+        }
+      });
+      
       // Process children
       if (section.children && section.children.length > 0) {
         section.children.forEach(child => {
-          const childPatterns = [
-            new RegExp(`<(h[1-6])[^>]*>\\s*${child.number}\\.?\\s+${escapeRegex(child.title)}\\s*</\\1>`, 'gi'),
-            new RegExp(`<p[^>]*>\\s*<(?:b|strong)[^>]*>\\s*${child.number}\\.?\\s+${escapeRegex(child.title)}\\s*</(?:b|strong)>\\s*</p>`, 'gi'),
-            new RegExp(`<p[^>]*>\\s*${child.number}\\.?\\s+${escapeRegex(child.title)}\\s*</p>`, 'gi')
-          ];
+          const childPattern = new RegExp(`^${child.number}\\.\\s+${child.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
           
-          let childReplaced = false;
-          for (const pattern of childPatterns) {
-            const newHtml = html.replace(pattern, (match) => {
-              if (!childReplaced) {
-                childReplaced = true;
-                return `<div id="${child.id}" class="section-marker subsection-marker"><h3 class="subsection-heading">${child.number}. ${child.title}</h3></div>`;
+          bodyElements.forEach(element => {
+            const text = element.textContent.trim();
+            if (childPattern.test(text)) {
+              const wrapper = doc.createElement('div');
+              wrapper.id = child.id;
+              wrapper.className = 'section-marker subsection-marker';
+              
+              const heading = doc.createElement('h3');
+              heading.className = 'subsection-heading';
+              heading.textContent = `${child.number}. ${child.title}`;
+              
+              wrapper.appendChild(heading);
+              
+              if (element.parentNode) {
+                element.parentNode.replaceChild(wrapper, element);
               }
-              return ''; // Remove duplicate occurrences
-            });
-            if (newHtml !== html) {
-              html = newHtml;
-              break;
             }
-          }
+          });
         });
       }
     });
-
+    
     // Enhanced table styling
-    html = html.replace(/<table/g, '<table class="doc-table"');
-    html = html.replace(/<th/g, '<th class="doc-th"');
-    html = html.replace(/<td/g, '<td class="doc-td"');
-
-    // Process images - add click handlers
-    html = html.replace(/<img([^>]*)>/g, '<img$1 class="doc-image" onclick="window.handleImageClick(this)" />');
-
-    return html;
-  };
-
-  const escapeRegex = (str) => {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    doc.querySelectorAll('table').forEach(table => {
+      table.className = 'doc-table';
+    });
+    
+    doc.querySelectorAll('th').forEach(th => {
+      th.className = 'doc-th';
+    });
+    
+    doc.querySelectorAll('td').forEach(td => {
+      td.className = 'doc-td';
+    });
+    
+    // Process images
+    doc.querySelectorAll('img').forEach(img => {
+      img.className = 'doc-image';
+      img.setAttribute('onclick', 'window.handleImageClick(this)');
+    });
+    
+    return doc.body.innerHTML;
   };
 
   const loadDocumentContent = async () => {
@@ -226,12 +225,11 @@ function UserGuide() {
       
       let html = await res.text();
       
-      // First, extract table of contents
-      const toc = extractTableOfContents(html);
-      console.log('Extracted TOC:', toc);
+      // Extract table of contents from the HTML
+      const toc = extractTableOfContentsFromHTML(html);
       setTableOfContents(toc);
       
-      // Then process HTML content with the TOC
+      // Process HTML content
       html = processHtmlContent(html, toc);
       
       setHtmlContent(html);
@@ -250,16 +248,18 @@ function UserGuide() {
     }));
   };
 
-  const handleSectionClick = (sectionId, isChild = false) => {
+  const handleSectionClick = (sectionId) => {
     setActiveSection(sectionId);
     
-    // Scroll to section
     setTimeout(() => {
       const element = document.getElementById(sectionId);
       if (element && contentRef.current) {
-        const yOffset = -80;
-        const y = element.getBoundingClientRect().top + contentRef.current.scrollTop;
-        contentRef.current.scrollTo({ top: y + yOffset, behavior: 'smooth' });
+        const yOffset = -20;
+        const elementTop = element.offsetTop;
+        contentRef.current.scrollTo({ 
+          top: elementTop + yOffset, 
+          behavior: 'smooth' 
+        });
       }
     }, 100);
   };
@@ -285,7 +285,6 @@ function UserGuide() {
     }).filter(Boolean);
   };
 
-  // Make image click handler available globally
   useEffect(() => {
     window.handleImageClick = (img) => {
       setExpandedImage(img.src);
@@ -310,13 +309,11 @@ function UserGuide() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header */}
       <header className="sticky top-0 z-50 h-14 flex items-center px-6 shadow-sm" style={{ backgroundColor: 'rgb(29, 38, 44)' }}>
         <h1 className="text-white text-lg font-semibold tracking-wide">User Guide</h1>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Navigation */}
         <aside className="w-80 border-r overflow-y-auto" style={{ backgroundColor: '#fafafa', borderColor: '#e5e7eb' }}>
           <div className="p-4 border-b" style={{ borderColor: '#e5e7eb' }}>
             <input
@@ -325,16 +322,14 @@ function UserGuide() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search sections..."
               className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 transition-all"
-              style={{ 
-                borderColor: '#d1d5db'
-              }}
+              style={{ borderColor: '#d1d5db' }}
             />
           </div>
 
           <nav className="p-3">
             {filteredNav.length === 0 ? (
               <div className="text-center text-gray-500 text-sm py-8">
-                No sections found
+                {tableOfContents.length === 0 ? 'Extracting sections...' : 'No sections found'}
               </div>
             ) : (
               filteredNav.map(section => (
@@ -356,7 +351,7 @@ function UserGuide() {
                     <span className="px-2 py-0.5 rounded text-xs font-bold" style={{ backgroundColor: '#DB0011', color: 'white' }}>
                       {section.number}
                     </span>
-                    <span className="flex-1">{section.title}</span>
+                    <span className="flex-1 truncate">{section.title}</span>
                   </button>
 
                   {expandedSections[section.id] && section.children?.length > 0 && (
@@ -364,7 +359,7 @@ function UserGuide() {
                       {section.children.map(child => (
                         <button
                           key={child.id}
-                          onClick={() => handleSectionClick(child.id, true)}
+                          onClick={() => handleSectionClick(child.id)}
                           className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-left transition-all text-sm"
                           style={{
                             backgroundColor: activeSection === child.id ? '#fff5f5' : 'transparent',
@@ -374,7 +369,7 @@ function UserGuide() {
                           <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ backgroundColor: '#f3f4f6', color: '#4b5563' }}>
                             {child.number}
                           </span>
-                          <span className="flex-1">{child.title}</span>
+                          <span className="flex-1 truncate">{child.title}</span>
                         </button>
                       ))}
                     </div>
@@ -385,7 +380,6 @@ function UserGuide() {
           </nav>
         </aside>
 
-        {/* Main Content */}
         <main ref={contentRef} className="flex-1 overflow-y-auto bg-white">
           <article className="max-w-5xl mx-auto px-8 py-8">
             <style>{`
@@ -399,11 +393,13 @@ function UserGuide() {
               .doc-content .section-marker {
                 margin-top: 48px;
                 margin-bottom: 24px;
+                scroll-margin-top: 20px;
               }
               
               .doc-content .subsection-marker {
                 margin-top: 32px;
                 margin-bottom: 16px;
+                scroll-margin-top: 20px;
               }
               
               .doc-content .section-heading {
@@ -502,7 +498,6 @@ function UserGuide() {
         </main>
       </div>
 
-      {/* Image Modal */}
       {expandedImage && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
