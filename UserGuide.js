@@ -39,7 +39,9 @@ function UserGuide() {
     // Find all anchor tags with href starting with #
     const links = doc.querySelectorAll('a[href^="#"]');
     
-    links.forEach((link) => {
+    console.log('Total links found:', links.length);
+    
+    links.forEach((link, index) => {
       const text = link.textContent.trim();
       const href = link.getAttribute('href');
       
@@ -48,8 +50,13 @@ function UserGuide() {
       // Remove the # to get the ID
       const targetId = href.substring(1);
       
+      console.log(`Link ${index}: "${text}" -> ID: "${targetId}"`);
+      
       // Skip if we've already seen this ID
-      if (seenIds.has(targetId)) return;
+      if (seenIds.has(targetId)) {
+        console.log(`  Skipping duplicate ID: ${targetId}`);
+        return;
+      }
       
       // Pattern: "1. Introduction" or "1.1. Background" (with or without page numbers)
       const match = text.match(/^(\d+(?:\.\d+)*)\.\s+(.+?)(?:\s+\d+)?$/);
@@ -75,6 +82,8 @@ function UserGuide() {
           level
         };
         
+        console.log(`  Added to TOC: ${number}. ${title} (ID: ${targetId})`);
+        
         if (level === 1) {
           toc.push({
             ...entry,
@@ -86,7 +95,7 @@ function UserGuide() {
       }
     });
     
-    console.log('Extracted TOC:', toc);
+    console.log('Final TOC:', toc);
     return toc;
   };
 
@@ -140,8 +149,12 @@ function UserGuide() {
     
     // Add scroll margin to all elements with IDs (section targets)
     doc.querySelectorAll('[id]').forEach(el => {
-      el.style.scrollMarginTop = '80px';
+      el.style.scrollMarginTop = '20px';
+      // Add a subtle visual marker for debugging (optional - remove in production)
+      // el.style.outline = '1px dashed #ccc';
     });
+    
+    console.log('Total elements with IDs found:', doc.querySelectorAll('[id]').length);
     
     return doc.body.innerHTML;
   };
@@ -181,16 +194,28 @@ function UserGuide() {
     setActiveSection(sectionId);
     
     setTimeout(() => {
-      const element = document.getElementById(sectionId);
-      if (element && contentRef.current) {
-        const elementTop = element.offsetTop;
-        const offset = 80;
-        contentRef.current.scrollTo({ 
-          top: elementTop - offset, 
+      // Find the element with this ID in the content area
+      const contentArea = contentRef.current;
+      if (!contentArea) return;
+      
+      // Query within the content area
+      const element = contentArea.querySelector(`#${CSS.escape(sectionId)}`);
+      
+      if (element) {
+        // Get element's position relative to the scrollable container
+        const containerTop = contentArea.getBoundingClientRect().top;
+        const elementTop = element.getBoundingClientRect().top;
+        const currentScroll = contentArea.scrollTop;
+        const offset = 20; // Small offset from top
+        
+        const scrollPosition = currentScroll + (elementTop - containerTop) - offset;
+        
+        contentArea.scrollTo({ 
+          top: scrollPosition, 
           behavior: 'smooth' 
         });
       }
-    }, 100);
+    }, 50);
   };
 
   const filterSections = (sections, query) => {
