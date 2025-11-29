@@ -103,30 +103,49 @@ function UserGuide() {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     
-    // Find and hide the Contents section
+    // Find and remove the Contents section completely
     let contentsFound = false;
-    const allElements = Array.from(doc.body.querySelectorAll('*'));
+    let firstContentFound = false;
+    const elementsToRemove = [];
     
-    for (let i = 0; i < allElements.length; i++) {
-      const element = allElements[i];
+    // Get all top-level elements in body
+    const bodyChildren = Array.from(doc.body.children);
+    
+    for (let i = 0; i < bodyChildren.length; i++) {
+      const element = bodyChildren[i];
       const text = element.textContent.trim();
       
       // Find "Contents" heading
-      if (/^Contents?$/i.test(text)) {
+      if (/^Contents?$/i.test(text) && !contentsFound) {
         contentsFound = true;
-        element.style.display = 'none';
+        elementsToRemove.push(element);
+        console.log('Found Contents heading, marking for removal');
         continue;
       }
       
-      // If we're in Contents section, hide elements
-      if (contentsFound) {
-        // Check if this is the start of actual content (section 1)
-        if (text.match(/^1\.\s+Introduction/i)) {
-          break;
+      // If we're in Contents section, mark elements for removal
+      if (contentsFound && !firstContentFound) {
+        // Check if this contains the actual section 1 content (not just the link)
+        // Look for the heading with id="Toc185299521" or similar
+        const hasId = element.querySelector('[id^="Toc"]') || element.id?.startsWith('Toc');
+        
+        if (hasId) {
+          console.log('Found first actual content section, stopping removal');
+          firstContentFound = true;
+        } else {
+          elementsToRemove.push(element);
         }
-        element.style.display = 'none';
       }
     }
+    
+    console.log(`Removing ${elementsToRemove.length} elements from Contents section`);
+    
+    // Remove all marked elements
+    elementsToRemove.forEach(el => {
+      if (el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    });
     
     // Enhanced table styling
     doc.querySelectorAll('table').forEach(table => {
@@ -148,13 +167,15 @@ function UserGuide() {
     });
     
     // Add scroll margin to all elements with IDs (section targets)
-    doc.querySelectorAll('[id]').forEach(el => {
-      el.style.scrollMarginTop = '20px';
-      // Add a subtle visual marker for debugging (optional - remove in production)
-      // el.style.outline = '1px dashed #ccc';
-    });
+    const elementsWithIds = doc.querySelectorAll('[id]');
+    console.log('Total elements with IDs found:', elementsWithIds.length);
     
-    console.log('Total elements with IDs found:', doc.querySelectorAll('[id]').length);
+    elementsWithIds.forEach((el, index) => {
+      el.style.scrollMarginTop = '20px';
+      if (index < 10) {
+        console.log(`Element ${index}: id="${el.id}", tag="${el.tagName}", text="${el.textContent.substring(0, 50)}..."`);
+      }
+    });
     
     return doc.body.innerHTML;
   };
@@ -193,27 +214,50 @@ function UserGuide() {
   const handleSectionClick = (sectionId) => {
     setActiveSection(sectionId);
     
+    console.log(`Attempting to scroll to section: ${sectionId}`);
+    
     setTimeout(() => {
-      // Find the element with this ID in the content area
       const contentArea = contentRef.current;
-      if (!contentArea) return;
+      if (!contentArea) {
+        console.error('Content area ref not found');
+        return;
+      }
       
-      // Query within the content area
-      const element = contentArea.querySelector(`#${CSS.escape(sectionId)}`);
+      // Try multiple methods to find the element
+      let element = contentArea.querySelector(`#${CSS.escape(sectionId)}`);
+      
+      if (!element) {
+        // Fallback: try without CSS.escape
+        element = contentArea.querySelector(`[id="${sectionId}"]`);
+      }
+      
+      if (!element) {
+        // Fallback: try document-wide search
+        element = document.getElementById(sectionId);
+      }
       
       if (element) {
-        // Get element's position relative to the scrollable container
-        const containerTop = contentArea.getBoundingClientRect().top;
-        const elementTop = element.getBoundingClientRect().top;
-        const currentScroll = contentArea.scrollTop;
-        const offset = 20; // Small offset from top
+        console.log(`Found element:`, element.tagName, element.textContent.substring(0, 50));
         
-        const scrollPosition = currentScroll + (elementTop - containerTop) - offset;
+        // Calculate scroll position
+        const containerRect = contentArea.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const currentScroll = contentArea.scrollTop;
+        const offset = 20;
+        
+        const scrollPosition = currentScroll + (elementRect.top - containerRect.top) - offset;
+        
+        console.log(`Scrolling to position: ${scrollPosition}`);
         
         contentArea.scrollTo({ 
           top: scrollPosition, 
           behavior: 'smooth' 
         });
+      } else {
+        console.error(`Element with id "${sectionId}" not found in document`);
+        // Log all available IDs for debugging
+        const allIds = Array.from(document.querySelectorAll('[id]')).map(el => el.id);
+        console.log('Available IDs in document:', allIds.slice(0, 20));
       }
     }, 50);
   };
