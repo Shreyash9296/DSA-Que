@@ -103,49 +103,60 @@ function UserGuide() {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     
-    // Find and remove the Contents section completely
-    let contentsFound = false;
-    let firstContentFound = false;
-    const elementsToRemove = [];
+    // Strategy: Find the Contents section and remove ONLY the clickable links part
+    // Keep all the actual content sections with IDs
     
-    // Get all top-level elements in body
-    const bodyChildren = Array.from(doc.body.children);
+    let contentsHeading = null;
+    let firstContentSection = null;
     
-    for (let i = 0; i < bodyChildren.length; i++) {
-      const element = bodyChildren[i];
+    // First, find the Contents heading
+    const allElements = Array.from(doc.body.querySelectorAll('*'));
+    
+    for (const element of allElements) {
       const text = element.textContent.trim();
       
-      // Find "Contents" heading
-      if (/^Contents?$/i.test(text) && !contentsFound) {
-        contentsFound = true;
-        elementsToRemove.push(element);
-        console.log('Found Contents heading, marking for removal');
-        continue;
-      }
-      
-      // If we're in Contents section, mark elements for removal
-      if (contentsFound && !firstContentFound) {
-        // Check if this contains the actual section 1 content (not just the link)
-        // Look for the heading with id="Toc185299521" or similar
-        const hasId = element.querySelector('[id^="Toc"]') || element.id?.startsWith('Toc');
-        
-        if (hasId) {
-          console.log('Found first actual content section, stopping removal');
-          firstContentFound = true;
-        } else {
-          elementsToRemove.push(element);
-        }
+      // Find "Contents" heading (usually a paragraph or heading)
+      if (/^Contents?$/i.test(text) && text.length < 20) {
+        contentsHeading = element;
+        console.log('Found Contents heading:', element.tagName);
+        break;
       }
     }
     
-    console.log(`Removing ${elementsToRemove.length} elements from Contents section`);
-    
-    // Remove all marked elements
-    elementsToRemove.forEach(el => {
-      if (el.parentNode) {
-        el.parentNode.removeChild(el);
+    if (contentsHeading) {
+      // Now find the first element with a Toc ID (actual content starts here)
+      let foundContent = false;
+      let currentElement = contentsHeading.nextElementSibling;
+      const elementsToRemove = [contentsHeading];
+      
+      while (currentElement && !foundContent) {
+        // Check if this element or any child has a Toc ID
+        const hasTocId = currentElement.id?.startsWith('Toc') || 
+                        currentElement.id?.startsWith('_Toc') ||
+                        currentElement.querySelector('[id^="Toc"], [id^="_Toc"]');
+        
+        if (hasTocId) {
+          console.log('Found first content section:', currentElement.tagName, currentElement.id);
+          foundContent = true;
+          firstContentSection = currentElement;
+        } else {
+          // This is part of the Contents list, mark for removal
+          elementsToRemove.push(currentElement);
+          currentElement = currentElement.nextElementSibling;
+        }
       }
-    });
+      
+      console.log(`Removing ${elementsToRemove.length} elements from Contents section`);
+      
+      // Remove only the Contents elements
+      elementsToRemove.forEach(el => {
+        if (el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      });
+    } else {
+      console.warn('Contents heading not found - content may still be visible');
+    }
     
     // Enhanced table styling
     doc.querySelectorAll('table').forEach(table => {
