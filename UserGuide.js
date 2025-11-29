@@ -34,60 +34,46 @@ function UserGuide() {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const toc = [];
-    const tocMap = new Map();
+    const seenIds = new Set();
     
-    // Find all paragraphs and headings in the document
-    const allElements = doc.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
+    // Find all anchor tags with href starting with #
+    const links = doc.querySelectorAll('a[href^="#"]');
     
-    // Pattern to match numbered sections like "1. Introduction" or "1.1. Background"
-    const sectionPattern = /^(\d+(?:\.\d+)*)\.\s+(.+)$/;
-    
-    let contentsEnded = false;
-    let contentsStarted = false;
-    
-    allElements.forEach((element) => {
-      const text = element.textContent.trim();
+    links.forEach((link) => {
+      const text = link.textContent.trim();
+      const href = link.getAttribute('href');
       
-      // Check if this is the "Contents" heading
-      if (/^Contents?$/i.test(text)) {
-        contentsStarted = true;
-        return;
-      }
+      if (!href || href === '#') return;
       
-      // If we haven't found contents yet and we see section 1, mark contents as ended
-      if (!contentsEnded && /^1\.\s+[A-Z]/.test(text)) {
-        contentsEnded = true;
-      }
+      // Remove the # to get the ID
+      const targetId = href.substring(1);
       
-      const match = text.match(sectionPattern);
+      // Skip if we've already seen this ID
+      if (seenIds.has(targetId)) return;
+      
+      // Pattern: "1. Introduction" or "1.1. Background" (with or without page numbers)
+      const match = text.match(/^(\d+(?:\.\d+)*)\.\s+(.+?)(?:\s+\d+)?$/);
       
       if (match) {
         const number = match[1];
         let title = match[2].trim();
         
-        // Remove page numbers from the end (e.g., "Introduction 4" -> "Introduction")
+        // Remove trailing page numbers if any
         title = title.replace(/\s+\d+$/, '').trim();
         
-        // Skip if title is empty after cleanup
-        if (!title) return;
-        
-        // Determine level based on dots in number
         const level = number.split('.').length;
         
-        // Only include up to level 2 (1.1, 1.2, etc.)
+        // Only process level 1 and 2
         if (level > 2) return;
         
-        const id = `section-${number.replace(/\./g, '-')}`;
+        seenIds.add(targetId);
         
         const entry = {
-          id,
+          id: targetId,
           number,
           title,
-          level,
-          element: element.cloneNode(true)
+          level
         };
-        
-        tocMap.set(id, entry);
         
         if (level === 1) {
           toc.push({
@@ -104,114 +90,57 @@ function UserGuide() {
     return toc;
   };
 
-  const processHtmlContent = (html, toc) => {
+  const processHtmlContent = (html) => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     
-    // Remove the entire Contents section
+    // Find and hide the Contents section
     let contentsFound = false;
-    let firstSectionFound = false;
-    const elementsToRemove = [];
+    const allElements = Array.from(doc.body.querySelectorAll('*'));
     
-    const allElements = doc.body.querySelectorAll('*');
-    
-    allElements.forEach((element) => {
+    for (let i = 0; i < allElements.length; i++) {
+      const element = allElements[i];
       const text = element.textContent.trim();
       
-      // Mark when we find "Contents"
+      // Find "Contents" heading
       if (/^Contents?$/i.test(text)) {
         contentsFound = true;
-        elementsToRemove.push(element);
-        return;
+        element.style.display = 'none';
+        continue;
       }
       
-      // If we're in contents section, mark elements for removal
-      if (contentsFound && !firstSectionFound) {
+      // If we're in Contents section, hide elements
+      if (contentsFound) {
         // Check if this is the start of actual content (section 1)
-        if (/^1\.\s+[A-Z]/.test(text) && !text.match(/\s+\d+$/)) {
-          firstSectionFound = true;
-        } else {
-          elementsToRemove.push(element);
+        if (text.match(/^1\.\s+Introduction/i)) {
+          break;
         }
+        element.style.display = 'none';
       }
-    });
-    
-    // Remove marked elements
-    elementsToRemove.forEach(el => {
-      if (el.parentNode) {
-        el.parentNode.removeChild(el);
-      }
-    });
-    
-    // Now inject section IDs into the actual content sections
-    const bodyElements = doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
-    
-    toc.forEach(section => {
-      const pattern = new RegExp(`^${section.number}\\.\\s+${section.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
-      
-      bodyElements.forEach(element => {
-        const text = element.textContent.trim();
-        if (pattern.test(text)) {
-          const wrapper = doc.createElement('div');
-          wrapper.id = section.id;
-          wrapper.className = 'section-marker';
-          
-          const heading = doc.createElement('h2');
-          heading.className = 'section-heading';
-          heading.textContent = `${section.number}. ${section.title}`;
-          
-          wrapper.appendChild(heading);
-          
-          if (element.parentNode) {
-            element.parentNode.replaceChild(wrapper, element);
-          }
-        }
-      });
-      
-      // Process children
-      if (section.children && section.children.length > 0) {
-        section.children.forEach(child => {
-          const childPattern = new RegExp(`^${child.number}\\.\\s+${child.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
-          
-          bodyElements.forEach(element => {
-            const text = element.textContent.trim();
-            if (childPattern.test(text)) {
-              const wrapper = doc.createElement('div');
-              wrapper.id = child.id;
-              wrapper.className = 'section-marker subsection-marker';
-              
-              const heading = doc.createElement('h3');
-              heading.className = 'subsection-heading';
-              heading.textContent = `${child.number}. ${child.title}`;
-              
-              wrapper.appendChild(heading);
-              
-              if (element.parentNode) {
-                element.parentNode.replaceChild(wrapper, element);
-              }
-            }
-          });
-        });
-      }
-    });
+    }
     
     // Enhanced table styling
     doc.querySelectorAll('table').forEach(table => {
-      table.className = 'doc-table';
+      table.classList.add('doc-table');
     });
     
     doc.querySelectorAll('th').forEach(th => {
-      th.className = 'doc-th';
+      th.classList.add('doc-th');
     });
     
     doc.querySelectorAll('td').forEach(td => {
-      td.className = 'doc-td';
+      td.classList.add('doc-td');
     });
     
     // Process images
     doc.querySelectorAll('img').forEach(img => {
-      img.className = 'doc-image';
+      img.classList.add('doc-image');
       img.setAttribute('onclick', 'window.handleImageClick(this)');
+    });
+    
+    // Add scroll margin to all elements with IDs (section targets)
+    doc.querySelectorAll('[id]').forEach(el => {
+      el.style.scrollMarginTop = '80px';
     });
     
     return doc.body.innerHTML;
@@ -225,12 +154,12 @@ function UserGuide() {
       
       let html = await res.text();
       
-      // Extract table of contents from the HTML
+      // First extract TOC from the links
       const toc = extractTableOfContentsFromHTML(html);
       setTableOfContents(toc);
       
-      // Process HTML content
-      html = processHtmlContent(html, toc);
+      // Then process HTML to hide Contents section
+      html = processHtmlContent(html);
       
       setHtmlContent(html);
       setLoading(false);
@@ -254,10 +183,10 @@ function UserGuide() {
     setTimeout(() => {
       const element = document.getElementById(sectionId);
       if (element && contentRef.current) {
-        const yOffset = -20;
         const elementTop = element.offsetTop;
+        const offset = 80;
         contentRef.current.scrollTo({ 
-          top: elementTop + yOffset, 
+          top: elementTop - offset, 
           behavior: 'smooth' 
         });
       }
@@ -390,34 +319,6 @@ function UserGuide() {
                 color: #1f2937;
               }
               
-              .doc-content .section-marker {
-                margin-top: 48px;
-                margin-bottom: 24px;
-                scroll-margin-top: 20px;
-              }
-              
-              .doc-content .subsection-marker {
-                margin-top: 32px;
-                margin-bottom: 16px;
-                scroll-margin-top: 20px;
-              }
-              
-              .doc-content .section-heading {
-                font-size: 24px;
-                font-weight: bold;
-                color: rgb(29, 38, 44);
-                margin-bottom: 16px;
-                padding-bottom: 8px;
-                border-bottom: 2px solid #DB0011;
-              }
-              
-              .doc-content .subsection-heading {
-                font-size: 20px;
-                font-weight: bold;
-                color: #374151;
-                margin-bottom: 12px;
-              }
-              
               .doc-content p {
                 margin-bottom: 12px;
                 text-align: justify;
@@ -430,6 +331,29 @@ function UserGuide() {
               
               .doc-content li {
                 margin-bottom: 6px;
+              }
+              
+              .doc-content h1, .doc-content h2, .doc-content h3, 
+              .doc-content h4, .doc-content h5, .doc-content h6 {
+                font-family: 'Times New Roman', Times, serif;
+                font-weight: bold;
+                margin-top: 24px;
+                margin-bottom: 12px;
+                color: rgb(29, 38, 44);
+              }
+              
+              .doc-content h1 {
+                font-size: 24px;
+                border-bottom: 2px solid #DB0011;
+                padding-bottom: 8px;
+              }
+              
+              .doc-content h2 {
+                font-size: 20px;
+              }
+              
+              .doc-content h3 {
+                font-size: 18px;
               }
               
               .doc-content .doc-table {
@@ -487,6 +411,15 @@ function UserGuide() {
                 border-radius: 6px;
                 overflow-x: auto;
                 margin: 16px 0;
+              }
+              
+              .doc-content a {
+                color: #2563eb;
+                text-decoration: none;
+              }
+              
+              .doc-content a:hover {
+                text-decoration: underline;
               }
             `}</style>
             
