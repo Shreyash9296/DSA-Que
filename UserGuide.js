@@ -231,6 +231,52 @@ function UserGuide() {
         return;
       }
       
+      // Find the element with this ID
+      const element = document.getElementById(sectionId);
+      
+      if (!element) {
+        console.error(`Element with id "${sectionId}" not found`);
+        return;
+      }
+      
+      console.log(`Found element: ${element.tagName}, parent: ${element.parentElement?.tagName}`);
+      
+      // The ID is on an <A> tag, but we need to scroll to its parent or the containing block
+      let scrollTarget = element;
+      
+      // If it's an anchor tag, use its parent element (usually H1, H2, etc.)
+      if (element.tagName === 'A') {
+        scrollTarget = element.parentElement || element;
+        console.log(`Using parent element for scroll: ${scrollTarget.tagName}`);
+      }
+      
+      // Check if this element is inside the hidden Contents section
+      let parent = scrollTarget;
+      let isInHiddenSection = false;
+      while (parent) {
+        if (window.getComputedStyle(parent).display === 'none') {
+          isInHiddenSection = true;
+          console.log('Element is in hidden Contents section, looking for duplicate...');
+          break;
+        }
+        parent = parent.parentElement;
+      }
+      
+      // If in hidden section, find the visible heading with same text content
+      if (isInHiddenSection) {
+        const targetText = element.textContent.trim();
+        const pattern = targetText.replace(/\s+/g, '\\s+').replace(/[.*+?^${}()|[\]\\]/g, '\\  const handleSectionClick = (sectionId) => {
+    setActiveSection(sectionId);
+    
+    console.log(`Attempting to scroll to section: ${sectionId}`);
+    
+    setTimeout(() => {
+      const contentArea = contentRef.current;
+      if (!contentArea) {
+        console.error('Content area ref not found');
+        return;
+      }
+      
       // Find ALL elements with this ID
       const allElementsWithId = document.querySelectorAll(`[id="${sectionId}"]`);
       console.log(`Found ${allElementsWithId.length} elements with id="${sectionId}"`);
@@ -277,6 +323,42 @@ function UserGuide() {
         console.error(`No suitable element found with id "${sectionId}"`);
       }
     }, 50);
+  };');
+        
+        console.log(`Looking for visible element with text: "${targetText}"`);
+        
+        // Find all headings in the visible content area
+        const allHeadings = contentArea.querySelectorAll('h1, h2, h3, h4, h5, h6, p');
+        for (const heading of allHeadings) {
+          const headingText = heading.textContent.trim();
+          if (headingText.includes(targetText) || targetText.includes(headingText.substring(0, 30))) {
+            const isVisible = window.getComputedStyle(heading).display !== 'none';
+            if (isVisible) {
+              scrollTarget = heading;
+              console.log(`Found visible match: ${heading.tagName} - "${headingText.substring(0, 50)}"`);
+              break;
+            }
+          }
+        }
+      }
+      
+      console.log(`Final scroll target: ${scrollTarget.tagName}`);
+      
+      // Calculate scroll position relative to the content area
+      const containerRect = contentArea.getBoundingClientRect();
+      const elementRect = scrollTarget.getBoundingClientRect();
+      const currentScroll = contentArea.scrollTop;
+      const offset = 80;
+      
+      const scrollPosition = currentScroll + (elementRect.top - containerRect.top) - offset;
+      
+      console.log(`Scrolling from ${currentScroll} to position: ${scrollPosition}`);
+      
+      contentArea.scrollTo({ 
+        top: Math.max(0, scrollPosition), 
+        behavior: 'smooth' 
+      });
+    }, 100);
   };
 
   const filterSections = (sections, query) => {
