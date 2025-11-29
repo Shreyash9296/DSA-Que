@@ -103,60 +103,57 @@ function UserGuide() {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     
-    // Strategy: Find the Contents section and remove ONLY the clickable links part
-    // Keep all the actual content sections with IDs
+    // Strategy: Find and hide the Contents section using CSS
+    // This is more reliable than removing elements
     
     let contentsHeading = null;
     let firstContentSection = null;
     
-    // First, find the Contents heading
-    const allElements = Array.from(doc.body.querySelectorAll('*'));
+    // Find the Contents heading and all links in it
+    const allParagraphs = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
     
-    for (const element of allElements) {
+    let inContentsSection = false;
+    const elementsToHide = [];
+    
+    for (let i = 0; i < allParagraphs.length; i++) {
+      const element = allParagraphs[i];
       const text = element.textContent.trim();
       
-      // Find "Contents" heading (usually a paragraph or heading)
-      if (/^Contents?$/i.test(text) && text.length < 20) {
-        contentsHeading = element;
-        console.log('Found Contents heading:', element.tagName);
-        break;
+      // Find "Contents" heading
+      if (/^Contents?$/i.test(text) && text.length < 20 && !inContentsSection) {
+        inContentsSection = true;
+        elementsToHide.push(element);
+        console.log('Found Contents heading');
+        continue;
+      }
+      
+      // If we're in Contents section
+      if (inContentsSection) {
+        // Check if this paragraph contains only a link (Contents entry)
+        const links = element.querySelectorAll('a[href^="#"]');
+        const hasOnlyLink = links.length > 0 && element.textContent.trim().match(/^\d+(\.\d+)*\./);
+        
+        // Check if this is actual content (has Toc ID directly on it, not in a link)
+        const isActualContent = (element.id && element.id.startsWith('Toc')) || 
+                               (element.id && element.id.startsWith('_Toc'));
+        
+        if (isActualContent) {
+          console.log('Found first actual content section, stopping hiding');
+          inContentsSection = false;
+          break;
+        } else if (hasOnlyLink) {
+          // This is a Contents entry, hide it
+          elementsToHide.push(element);
+        }
       }
     }
     
-    if (contentsHeading) {
-      // Now find the first element with a Toc ID (actual content starts here)
-      let foundContent = false;
-      let currentElement = contentsHeading.nextElementSibling;
-      const elementsToRemove = [contentsHeading];
-      
-      while (currentElement && !foundContent) {
-        // Check if this element or any child has a Toc ID
-        const hasTocId = currentElement.id?.startsWith('Toc') || 
-                        currentElement.id?.startsWith('_Toc') ||
-                        currentElement.querySelector('[id^="Toc"], [id^="_Toc"]');
-        
-        if (hasTocId) {
-          console.log('Found first content section:', currentElement.tagName, currentElement.id);
-          foundContent = true;
-          firstContentSection = currentElement;
-        } else {
-          // This is part of the Contents list, mark for removal
-          elementsToRemove.push(currentElement);
-          currentElement = currentElement.nextElementSibling;
-        }
-      }
-      
-      console.log(`Removing ${elementsToRemove.length} elements from Contents section`);
-      
-      // Remove only the Contents elements
-      elementsToRemove.forEach(el => {
-        if (el.parentNode) {
-          el.parentNode.removeChild(el);
-        }
-      });
-    } else {
-      console.warn('Contents heading not found - content may still be visible');
-    }
+    console.log(`Hiding ${elementsToHide.length} Contents elements`);
+    
+    // Hide the Contents elements using display: none
+    elementsToHide.forEach(el => {
+      el.style.display = 'none';
+    });
     
     // Enhanced table styling
     doc.querySelectorAll('table').forEach(table => {
@@ -234,25 +231,37 @@ function UserGuide() {
         return;
       }
       
-      // Try multiple methods to find the element
-      let element = contentArea.querySelector(`#${CSS.escape(sectionId)}`);
+      // Find ALL elements with this ID
+      const allElementsWithId = document.querySelectorAll(`[id="${sectionId}"]`);
+      console.log(`Found ${allElementsWithId.length} elements with id="${sectionId}"`);
       
-      if (!element) {
-        // Fallback: try without CSS.escape
-        element = contentArea.querySelector(`[id="${sectionId}"]`);
+      // Find the one that's NOT an anchor tag (not a link)
+      let targetElement = null;
+      allElementsWithId.forEach((el, index) => {
+        console.log(`  Element ${index}: ${el.tagName}, parent: ${el.parentElement?.tagName}, display: ${window.getComputedStyle(el).display}`);
+        
+        // We want the element that's NOT hidden and NOT an anchor inside a hidden element
+        const isVisible = window.getComputedStyle(el).display !== 'none' &&
+                         window.getComputedStyle(el.parentElement || el).display !== 'none';
+        
+        if (el.tagName !== 'A' && isVisible) {
+          targetElement = el;
+          console.log(`  -> Using this element for scrolling`);
+        }
+      });
+      
+      if (!targetElement && allElementsWithId.length > 0) {
+        // Fallback: use the last one (likely the actual content, not the link)
+        targetElement = allElementsWithId[allElementsWithId.length - 1];
+        console.log('Using fallback: last element with this ID');
       }
       
-      if (!element) {
-        // Fallback: try document-wide search
-        element = document.getElementById(sectionId);
-      }
-      
-      if (element) {
-        console.log(`Found element:`, element.tagName, element.textContent.substring(0, 50));
+      if (targetElement) {
+        console.log(`Scrolling to: ${targetElement.tagName} - "${targetElement.textContent.substring(0, 50)}..."`);
         
         // Calculate scroll position
         const containerRect = contentArea.getBoundingClientRect();
-        const elementRect = element.getBoundingClientRect();
+        const elementRect = targetElement.getBoundingClientRect();
         const currentScroll = contentArea.scrollTop;
         const offset = 20;
         
@@ -265,10 +274,7 @@ function UserGuide() {
           behavior: 'smooth' 
         });
       } else {
-        console.error(`Element with id "${sectionId}" not found in document`);
-        // Log all available IDs for debugging
-        const allIds = Array.from(document.querySelectorAll('[id]')).map(el => el.id);
-        console.log('Available IDs in document:', allIds.slice(0, 20));
+        console.error(`No suitable element found with id "${sectionId}"`);
       }
     }, 50);
   };
