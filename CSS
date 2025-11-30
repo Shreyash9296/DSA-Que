@@ -1,4 +1,5 @@
-const renderGroup = (group, path = [], depth = 0) => {
+// Render Group Component
+  const renderGroup = (group, path = [], depth = 0) => {
     console.log("rendering group at path", path);
 
     if (!group || typeof group !== 'object') return null;
@@ -126,32 +127,20 @@ const renderGroup = (group, path = [], depth = 0) => {
                 </>
               ) : (
                 <>
-                  <div className='flex items-start gap-2 w-full'>
-                    <div className='flex items-start flex-1' style={{ minWidth: 0 }}>
-                      {/* Is Group and Not checkboxes */}
-                      <div className="flex flex-col gap-1 pt-1 whitespace-nowrap mr-2">
-                        <div className='flex items-center'>
-                          <input 
-                            type="checkbox" 
-                            checked={rule.isGroup} 
-                            onChange={(e) => handleRuleChange([...path, 'conditions', ruleIndex], 'isGroup', e.target.checked)} 
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm" 
-                          />
-                          <label htmlFor="isGroup" className="ml-2 text-xs text-gray-900 whitespace-nowrap">Is Group</label>
-                        </div>
-                        <div className='flex items-center'>
-                          <input 
-                            type="checkbox" 
-                            checked={rule.not} 
-                            onChange={(e) => handleRuleChange([...path, 'conditions', ruleIndex], 'not', e.target.checked)} 
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm" 
-                          />
-                          <label htmlFor="not" className="ml-2 text-xs text-gray-900 whitespace-nowrap">Not</label>
-                        </div>
-                      </div>
+                  <div className='flex items-center gap-1 w-full'>
+                    {/* Is Group checkbox */}
+                    <div className="flex items-center whitespace-nowrap">
+                      <input 
+                        type="checkbox" 
+                        checked={rule.isGroup} 
+                        onChange={(e) => handleRuleChange([...path, 'conditions', ruleIndex], 'isGroup', e.target.checked)} 
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm" 
+                      />
+                      <label htmlFor="isGroup" className="ml-1 text-xs text-gray-900 whitespace-nowrap">Is Group</label>
+                    </div>
 
-                      {/* Field/Group Selector */}
-                      <div className="flex flex-col min-h-[40px] relative mr-1" style={{ width: `${fieldWidth}px`, minWidth: '180px' }}>
+                    {/* Field/Group Selector */}
+                    <div className="flex flex-col min-h-[40px] relative" style={{ width: `${fieldWidth}px`, minWidth: '180px' }}>
                         {rule.isGroup === true ? (
                           <div className="relative w-full" ref={(el) => (groupDropdownRef.current[rule.id] = el)}>
                             <button
@@ -261,8 +250,19 @@ const renderGroup = (group, path = [], depth = 0) => {
                         )}
                       </div>
 
+                    {/* Not checkbox */}
+                    <div className="flex items-center whitespace-nowrap">
+                      <input 
+                        type="checkbox" 
+                        checked={rule.not} 
+                        onChange={(e) => handleRuleChange([...path, 'conditions', ruleIndex], 'not', e.target.checked)} 
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm" 
+                      />
+                      <label htmlFor="not" className="ml-1 text-xs text-gray-900 whitespace-nowrap">Not</label>
+                    </div>
+
                       {/* Operator Selector */}
-                      <div className="flex flex-col min-h-[40px] relative mr-1" style={{ width: `${operatorWidth}px`, minWidth: '180px' }}>
+                      <div className="flex flex-col min-h-[40px] relative" style={{ width: `${operatorWidth}px`, minWidth: '180px' }}>
                         <div className="relative" ref={(el) => (operatorDropdownRef.current[rule.id] = el)}>
                           <button
                             type="button"
@@ -459,17 +459,16 @@ const renderGroup = (group, path = [], depth = 0) => {
                           </div>
                         )}
                       </div>
-                    </div>
 
                     {/* Action Buttons */}
-                    <div className="flex flex-row items-start gap-1 flex-shrink-0 ml-2" style={{ minWidth: '58px', maxWidth: '58px' }}>
+                    <div className="flex flex-row items-center gap-1 flex-shrink-0" style={{ minWidth: '58px', maxWidth: '58px' }}>
                       <button 
                         onClick={() => handleRemoveRule(path, ruleIndex)} 
                         className="border-gray-800 border-solid bg-red-400 text-white text-sm rounded px-2 py-1 h-8 hover:bg-red-500"
                       >
                         x
                       </button>
-                      <div className='flex flex-col gap-1'>
+                      <div className='flex flex-col gap-0.5'>
                         <button 
                           onClick={() => moveCondition(path, ruleIndex, 'up')} 
                           className='border-gray-800 border-solid bg-gray-300 text-sm rounded px-1.5 py-0.5 hover:bg-gray-400'
@@ -497,3 +496,387 @@ const renderGroup = (group, path = [], depth = 0) => {
       </div>
     );
   };
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 className="text-2xl font-bold mb-6 text-gray-800">Nested Group Rule Builder</h1>
+        
+        <div className="mb-4">
+          <input 
+            type="text" 
+            placeholder="Enter Rule Name" 
+            className="w-full px-4 py-2 border border-gray-300 rounded-md mb-2 text-sm focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
+          />
+          <input 
+            type="text" 
+            placeholder="Enter Rule Description" 
+            className="w-full px-4 py-2 border border-gray-300 rounded-md mb-2 text-sm focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
+          />
+          <select 
+            className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
+          >
+            <option>Select Return Code</option>
+            <option>RC001 - Success</option>
+            <option>RC002 - Failed</option>
+          </select>
+        </div>
+
+        <div className="border-t border-gray-300 pt-4">
+          <h2 className="text-lg font-semibold mb-3 text-gray-700">Input Conditions</h2>
+          {renderGroup(groups, [], 0)}
+        </div>
+
+        <div className="border-t border-gray-300 mt-6 pt-4">
+          <h2 className="text-lg font-semibold mb-3 text-gray-700">Actions</h2>
+          <div className="border border-gray-600 rounded p-4">
+            <div className="flex items-center gap-2">
+              <input 
+                type="checkbox" 
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm" 
+              />
+              <label className="text-xs text-gray-900">Is Group</label>
+              <select className="text-xs flex-1 rounded-md border-0 py-1.5 px-3 shadow-sm ring-1 ring-gray-300 focus:ring-2 focus:ring-indigo-600">
+                <option>Select Field</option>
+                <option>Customer Name</option>
+                <option>Order Amount</option>
+              </select>
+              <select className="text-xs flex-1 rounded-md border-0 py-1.5 px-3 shadow-sm ring-1 ring-gray-300 focus:ring-2 focus:ring-indigo-600">
+                <option>Select Operator</option>
+                <option>equals</option>
+                <option>not equals</option>
+              </select>
+              <input 
+                type="text" 
+                placeholder="Enter Value" 
+                className="text-xs flex-1 rounded-md border-0 py-1.5 px-3 shadow-sm ring-1 ring-gray-300 focus:ring-2 focus:ring-indigo-600"
+              />
+              <button className="border-gray-800 border-solid bg-red-400 text-white text-sm rounded px-2 py-1 hover:bg-red-500">x</button>
+            </div>
+          </div>
+          <button className="mt-3 border-gray-800 border-solid bg-gray-300 text-sm rounded px-3 py-1.5 hover:bg-gray-400">+ Action</button>
+        </div>
+
+        <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-300">
+          <button className="bg-red-700 text-white px-4 py-2 rounded text-sm hover:bg-red-800">
+            Rule Preview
+          </button>
+          <div className="flex gap-2">
+            <button className="bg-red-700 text-white px-4 py-2 rounded text-sm hover:bg-red-800">
+              Close
+            </button>
+            <button className="bg-red-700 text-white px-4 py-2 rounded text-sm hover:bg-red-800">
+              Reset
+            </button>
+            <button className="bg-red-700 text-white px-4 py-2 rounded text-sm hover:bg-red-800">
+              Create Rule
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-6 p-4 bg-gray-50 rounded border border-gray-300">
+          <h3 className="text-sm font-semibold mb-2 text-gray-700">Current State (Debug):</h3>
+          <pre className="text-xs overflow-auto bg-white p-3 rounded border border-gray-200">
+            {JSON.stringify(groups, null, 2)}
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default NestedGroupForm;import React, { useState, useRef, useEffect } from 'react';
+
+const NestedGroupForm = () => {
+  const [groups, setGroups] = useState({
+    id: 'root',
+    logical_operator: 'AND',
+    conditions: []
+  });
+  
+  const [errors, setErrors] = useState({});
+  const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState({});
+  const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState({});
+  const [operatorDropdownState, setOperatorDropdownState] = useState({});
+  const [isValueOpen, setIsValueOpen] = useState({});
+  const [isReturnListOpen, setIsReturnListOpen] = useState({});
+  
+  const [groupSearchTerm, setGroupSearchTerm] = useState({});
+  const [fieldSearchTerm, setFieldSearchTerm] = useState({});
+  const [operatorSearchTerm, setOperatorSearchTerm] = useState({});
+  const [valueSearchTerm, setValueSearchTerm] = useState({});
+  const [returnListSearch, setReturnListSearch] = useState({});
+  const [selectedReturnCodes, setSelectedReturnCodes] = useState({});
+  
+  const groupDropdownRef = useRef({});
+  const fieldDropdownRef = useRef({});
+  const operatorDropdownRef = useRef({});
+  const valueDropdownRef = useRef({});
+  const returnDropDownRef = useRef({});
+
+  // Filter functions
+  const getFilteredGroupOptions = (ruleId) => {
+    const searchTerm = groupSearchTerm[ruleId] || '';
+    return groupOptions.filter(option => 
+      option.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const getFilteredActionFieldOptions = (ruleId) => {
+    const searchTerm = fieldSearchTerm[ruleId] || '';
+    return fieldOptions.filter(field => 
+      field.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const getFilteredOperators = (ruleId) => {
+    const searchTerm = operatorSearchTerm[ruleId] || '';
+    return operations.filter(op => 
+      op.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const getFilteredValueFields = (ruleId) => {
+    const searchTerm = valueSearchTerm[ruleId] || '';
+    return valueListOptions.filter(field => 
+      field.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const getFilteredReturnList = (ruleId) => {
+    const searchTerm = returnListSearch[ruleId] || '';
+    return returnCodeOptions.filter(option => 
+      option.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      option.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  // Toggle functions
+  const toggleGroupDropdown = (ruleId) => {
+    setIsGroupDropdownOpen(prev => ({ ...prev, [ruleId]: !prev[ruleId] }));
+  };
+
+  const toggleFieldDropdown = (ruleId) => {
+    setIsFieldDropdownOpen(prev => ({ ...prev, [ruleId]: !prev[ruleId] }));
+  };
+
+  const toggleDropdown = (ruleId) => {
+    setOperatorDropdownState(prev => ({ ...prev, [ruleId]: !prev[ruleId] }));
+  };
+
+  const toggleValueDropdown = (ruleId) => {
+    setIsValueOpen(prev => ({ ...prev, [ruleId]: !prev[ruleId] }));
+  };
+
+  const toggleReturnDropdown = (ruleId) => {
+    setIsReturnListOpen(prev => ({ ...prev, [ruleId]: !prev[ruleId] }));
+  };
+
+  // Handle functions
+  const handleRuleChange = (path, field, value) => {
+    const newGroups = setNestedValue(groups, [...path, field], value);
+    setGroups(newGroups);
+  };
+
+  const handleAddRule = (path, position) => {
+    const currentGroup = path.length === 0 ? groups : getNestedValue(groups, path);
+    const newRule = {
+      id: `rule_${Date.now()}`,
+      isGroup: false,
+      not: false,
+      key: '',
+      operator: '',
+      value: '',
+      conditions: null
+    };
+
+    const newConditions = [...(currentGroup.conditions || [])];
+    if (position === 'top') {
+      newConditions.unshift(newRule);
+    } else {
+      newConditions.push(newRule);
+    }
+
+    if (path.length === 0) {
+      setGroups({ ...groups, conditions: newConditions });
+    } else {
+      const newGroups = setNestedValue(groups, [...path, 'conditions'], newConditions);
+      setGroups(newGroups);
+    }
+  };
+
+  const handleAddGroup = (path, position) => {
+    const currentGroup = path.length === 0 ? groups : getNestedValue(groups, path);
+    const newGroup = {
+      id: `group_${Date.now()}`,
+      logical_operator: 'OR',
+      conditions: []
+    };
+
+    const newConditions = [...(currentGroup.conditions || [])];
+    if (position === 'top') {
+      newConditions.unshift(newGroup);
+    } else {
+      newConditions.push(newGroup);
+    }
+
+    if (path.length === 0) {
+      setGroups({ ...groups, conditions: newConditions });
+    } else {
+      const newGroups = setNestedValue(groups, [...path, 'conditions'], newConditions);
+      setGroups(newGroups);
+    }
+  };
+
+  const handleRemoveRule = (path, ruleIndex) => {
+    const parentPath = path;
+    const currentGroup = getNestedValue(groups, parentPath);
+    const newConditions = currentGroup.conditions.filter((_, idx) => idx !== ruleIndex);
+    const newGroups = setNestedValue(groups, [...parentPath, 'conditions'], newConditions);
+    setGroups(newGroups);
+  };
+
+  const handleRemoveGroup = (path) => {
+    if (path.length === 0) return;
+    const parentPath = path.slice(0, -2);
+    const index = path[path.length - 1];
+    const parent = parentPath.length === 0 ? groups : getNestedValue(groups, parentPath);
+    const newConditions = parent.conditions.filter((_, idx) => idx !== index);
+    
+    if (parentPath.length === 0) {
+      setGroups({ ...groups, conditions: newConditions });
+    } else {
+      const newGroups = setNestedValue(groups, [...parentPath, 'conditions'], newConditions);
+      setGroups(newGroups);
+    }
+  };
+
+  const moveCondition = (path, ruleIndex, direction) => {
+    const currentGroup = getNestedValue(groups, path);
+    const newConditions = [...currentGroup.conditions];
+    
+    if (direction === 'up' && ruleIndex > 0) {
+      [newConditions[ruleIndex], newConditions[ruleIndex - 1]] = 
+      [newConditions[ruleIndex - 1], newConditions[ruleIndex]];
+    } else if (direction === 'down' && ruleIndex < newConditions.length - 1) {
+      [newConditions[ruleIndex], newConditions[ruleIndex + 1]] = 
+      [newConditions[ruleIndex + 1], newConditions[ruleIndex]];
+    }
+
+    const newGroups = setNestedValue(groups, [...path, 'conditions'], newConditions);
+    setGroups(newGroups);
+  };
+
+  const handleGroupOptionSelect = (option, path, ruleIndex, ruleId) => {
+    handleRuleChange([...path, 'conditions', ruleIndex], 'key', option.name);
+    setIsGroupDropdownOpen(prev => ({ ...prev, [ruleId]: false }));
+  };
+
+  const handleFieldOptionSelect = (field, path, ruleIndex, ruleId) => {
+    handleRuleChange([...path, 'conditions', ruleIndex], 'key', field.name);
+    setIsFieldDropdownOpen(prev => ({ ...prev, [ruleId]: false }));
+  };
+
+  const handleOperatorSelect = (operator, path, ruleIndex, ruleId) => {
+    handleRuleChange([...path, 'conditions', ruleIndex], 'operator', operator.name);
+    setOperatorDropdownState(prev => ({ ...prev, [ruleId]: false }));
+  };
+
+  const handleValueSelect = (valueField, path, ruleIndex, ruleId) => {
+    handleRuleChange([...path, 'conditions', ruleIndex], 'value', valueField.name);
+    setIsValueOpen(prev => ({ ...prev, [ruleId]: false }));
+  };
+
+  const handleReturnCodeListOptionSelect = (option, path, ruleIndex, ruleId) => {
+    handleRuleChange([...path, 'conditions', ruleIndex], 'value', `${option.name} ${option.description}`);
+    setSelectedReturnCodes(prev => ({ ...prev, [ruleId]: option }));
+    setIsReturnListOpen(prev => ({ ...prev, [ruleId]: false }));
+  };
+
+  // Click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      Object.keys(groupDropdownRef.current).forEach(key => {
+        if (groupDropdownRef.current[key] && !groupDropdownRef.current[key].contains(event.target)) {
+          setIsGroupDropdownOpen(prev => ({ ...prev, [key]: false }));
+        }
+      });
+      Object.keys(fieldDropdownRef.current).forEach(key => {
+        if (fieldDropdownRef.current[key] && !fieldDropdownRef.current[key].contains(event.target)) {
+          setIsFieldDropdownOpen(prev => ({ ...prev, [key]: false }));
+        }
+      });
+      Object.keys(operatorDropdownRef.current).forEach(key => {
+        if (operatorDropdownRef.current[key] && !operatorDropdownRef.current[key].contains(event.target)) {
+          setOperatorDropdownState(prev => ({ ...prev, [key]: false }));
+        }
+      });
+      Object.keys(valueDropdownRef.current).forEach(key => {
+        if (valueDropdownRef.current[key] && !valueDropdownRef.current[key].contains(event.target)) {
+          setIsValueOpen(prev => ({ ...prev, [key]: false }));
+        }
+      });
+      Object.keys(returnDropDownRef.current).forEach(key => {
+        if (returnDropDownRef.current[key] && !returnDropDownRef.current[key].contains(event.target)) {
+          setIsReturnListOpen(prev => ({ ...prev, [key]: false }));
+        }
+      });
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Sample data
+  const groupOptions = [
+    { id: 'g1', name: 'Customer Group' },
+    { id: 'g2', name: 'Order Group' },
+    { id: 'g3', name: 'Product Group' }
+  ];
+
+  const fieldOptions = [
+    { id: 'f1', name: 'Customer Name' },
+    { id: 'f2', name: 'Order Amount' },
+    { id: 'f3', name: 'Product Type' },
+    { id: 'f4', name: 'Status' }
+  ];
+
+  const operations = [
+    { id: 'o1', name: 'equals', type: { name: 'string' } },
+    { id: 'o2', name: 'not equals', type: { name: 'string' } },
+    { id: 'o3', name: 'greater than', type: { name: 'number' } },
+    { id: 'o4', name: 'less than', type: { name: 'number' } },
+    { id: 'o5', name: 'contains', type: { name: 'string' } },
+    { id: 'o6', name: 'is boolean', type: { name: 'boolean' } },
+    { id: 'o7', name: 'in list', type: { name: 'value_list' } },
+    { id: 'o8', name: 'return code', type: { name: 'return_code_list' } }
+  ];
+
+  const valueListOptions = [
+    { id: 'v1', name: 'Active' },
+    { id: 'v2', name: 'Inactive' },
+    { id: 'v3', name: 'Pending' }
+  ];
+
+  const returnCodeOptions = [
+    { id: 'r1', name: 'RC001', description: 'Success' },
+    { id: 'r2', name: 'RC002', description: 'Failed' },
+    { id: 'r3', name: 'RC003', description: 'Pending' }
+  ];
+
+  // Helper functions
+  const getNestedValue = (obj, path) => {
+    return path.reduce((current, key) => current?.[key], obj);
+  };
+
+  const setNestedValue = (obj, path, value) => {
+    const newObj = JSON.parse(JSON.stringify(obj));
+    let current = newObj;
+    for (let i = 0; i < path.length - 1; i++) {
+      current = current[path[i]];
+    }
+    current[path[path.length - 1]] = value;
+    return newObj;
+  };
+
+  //
