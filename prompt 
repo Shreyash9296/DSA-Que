@@ -1,0 +1,349 @@
+# Precision Prompt for GitHub Copilot: Make Create Rule Form Responsive
+
+## Context
+You have access to my existing Create Rule form component in the repository. The form is already built and functional, but it needs responsive design improvements to handle different screen sizes and browser zoom levels up to 175%+.
+
+## Current Issues to Fix
+1. **Element Overlap**: Components overlap when browser zoom increases to 150-175%
+2. **Layout Breaking**: Form structure breaks on smaller laptop screens (1366px)
+3. **Inconsistent Spacing**: Fields don't maintain proper spacing across different viewports
+4. **Wrapping Issues**: Elements wrap unexpectedly or don't wrap when they should
+
+## Target Requirements
+
+### Primary Target Screens
+- **Desktop**: 1920px+ (full spacing, no wrapping)
+- **Laptop Large**: 1536px - 1919px (optimized spacing)
+- **Laptop Standard**: 1366px - 1535px (PRIMARY - most users, tight but clear spacing)
+- **Tablet**: 768px - 1365px (allow controlled wrapping)
+
+### Zoom Requirements
+- Must work perfectly at 100%, 125%, 150%, and 175% zoom
+- Critical test: 1366px screen at 175% zoom (effective ~780px viewport)
+- NO element overlap at any zoom level
+- All buttons must remain clickable (minimum 40px click area)
+
+## Specific Fixes Needed
+
+### 1. General Details Section
+**Current Structure** (keep this):
+```
+Row 1: [Select Entity] [Select Field Group]
+Row 2: [Enter Rule Name] [Enter Rule Description]  
+Row 3: [Select Return Code - full width]
+```
+
+**Required Changes**:
+- Add `min-w-[280px]` to all dropdown buttons (Select Entity, Select Field Group, Select Return Code)
+- Add `min-w-[200px]` to text inputs (Rule Name, Rule Description)
+- Use `lg:grid-cols-2` for Rule Name/Description row, stack on smaller screens
+- Add `gap-4` (16px) between all fields
+- Add `flex-wrap` to the first row so dropdowns wrap gracefully if needed
+- Ensure full-width Select Return Code uses `lg:col-span-2`
+
+**Exact Tailwind Classes**:
+```jsx
+// Container
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-6">
+  
+  // Row 1 wrapper
+  <div className="lg:col-span-2 flex flex-col sm:flex-row flex-wrap gap-4">
+    // Select Entity button
+    <button className="min-w-[280px] sm:flex-1 lg:w-auto lg:flex-initial h-11 px-4 ...">
+    
+    // Select Field Group button  
+    <button className="min-w-[280px] sm:flex-1 lg:flex-1 h-11 px-4 ...">
+  </div>
+  
+  // Rule Name input
+  <input className="w-full min-w-[200px] h-11 px-4 ..." />
+  
+  // Rule Description input
+  <input className="w-full min-w-[200px] h-11 px-4 ..." />
+  
+  // Row 3 wrapper
+  <div className="lg:col-span-2">
+    // Select Return Code button
+    <button className="w-full min-w-[280px] h-11 px-4 ...">
+  </div>
+</div>
+```
+
+### 2. Input Conditions Section - Condition Rows
+**Current Structure** (keep this):
+```
+[☐ Is Group] [Select Field ▼] [☐ Not] [Select Operations ▼] [Enter Value] [conditions] [Conditions ▼] [Group] [Group ▼] [X][↑][↓]
+```
+
+**Required Changes**:
+- Use `flex flex-wrap lg:flex-nowrap` for the row container
+- Add `min-w-[150px]` to each dropdown (Select Field, Select Operations)
+- Add `min-w-[150px]` to Enter Value input
+- Use `flex-1` on dropdowns and input so they grow equally
+- Add `gap-3` (12px) between all elements
+- Keep action buttons grouped: `<div className="flex items-center gap-2">` for horizontal group buttons, then `<div className="flex flex-col gap-1">` for vertical X/↑/↓ buttons
+- On wrap (mobile/tablet), buttons should move to next line as a group
+
+**Exact Tailwind Classes**:
+```jsx
+// Condition row container
+<div className="flex flex-wrap lg:flex-nowrap items-center gap-3 p-4 bg-gray-300 border border-gray-500 rounded">
+  
+  // Is Group checkbox + label
+  <div className="flex items-center gap-2 shrink-0">
+    <input type="checkbox" className="w-5 h-5" />
+    <label className="text-sm">Is Group</label>
+  </div>
+  
+  // Select Field button
+  <button className="flex-1 min-w-[150px] h-10 px-3 ...">
+  
+  // Not checkbox + label
+  <div className="flex items-center gap-2 shrink-0">
+    <input type="checkbox" className="w-5 h-5" />
+    <label className="text-sm">Not</label>
+  </div>
+  
+  // Select Operations button
+  <button className="flex-1 min-w-[150px] h-10 px-3 ...">
+  
+  // Enter Value input
+  <input className="flex-1 min-w-[150px] h-10 px-3 ..." />
+  
+  // Right side button groups
+  <div className="flex items-center gap-2 shrink-0">
+    // Horizontal buttons
+    <button className="px-3 py-1 text-sm ...">conditions</button>
+    <button className="px-3 py-1 text-sm ...">Conditions ▼</button>
+    <button className="px-3 py-1 text-sm ...">Group</button>
+    <button className="px-3 py-1 text-sm ...">Group ▼</button>
+    
+    // Vertical action buttons
+    <div className="flex flex-col gap-1">
+      <button className="w-8 h-8 ...">X</button>
+      <button className="w-8 h-8 ...">↑</button>
+      <button className="w-8 h-8 ...">↓</button>
+    </div>
+  </div>
+</div>
+```
+
+### 3. Actions Section - Action Rows
+**Current Structure** (keep this):
+```
+[☐ Is Group] [Select Field ▼] [Select Operator ▼] [Enter Value] [X]
+```
+
+**Required Changes**:
+- Use `flex flex-wrap lg:flex-nowrap` for the row container
+- Add `min-w-[150px]` to dropdowns (Select Field, Select Operator)
+- Add `min-w-[150px]` to Enter Value input
+- Use `flex-1` on dropdowns and input for equal growth
+- Add `gap-3` between elements
+- Keep X button at fixed width with `shrink-0`
+
+**Exact Tailwind Classes**:
+```jsx
+// Action row container
+<div className="flex flex-wrap lg:flex-nowrap items-center gap-3 p-4 bg-gray-300 border border-gray-500 rounded">
+  
+  // Is Group checkbox + label
+  <div className="flex items-center gap-2 shrink-0">
+    <input type="checkbox" className="w-5 h-5" />
+    <label className="text-sm">Is Group</label>
+  </div>
+  
+  // Select Field button
+  <button className="flex-1 min-w-[150px] h-10 px-3 ...">
+  
+  // Select Operator button
+  <button className="flex-1 min-w-[150px] h-10 px-3 ...">
+  
+  // Enter Value input
+  <input className="flex-1 min-w-[150px] h-10 px-3 ..." />
+  
+  // Remove button
+  <button className="w-8 h-8 shrink-0 ...">X</button>
+</div>
+```
+
+### 4. Footer Actions
+**Current Structure** (keep this):
+```
+[Rule Preview]                    [Close] [Reset] [Create Rule]
+```
+
+**Required Changes**:
+- Use `flex flex-col sm:flex-row justify-between items-center`
+- Add `gap-4` for spacing
+- Wrap right-side buttons in their own flex container
+- On mobile, stack vertically; on tablet+, horizontal with space-between
+
+**Exact Tailwind Classes**:
+```jsx
+<div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-6 bg-gray-400 border-2 border-gray-500 rounded-lg">
+  
+  // Left side button
+  <button className="w-full sm:w-auto px-6 py-2 bg-red-700 text-white rounded ...">
+    Rule Preview
+  </button>
+  
+  // Right side button group
+  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+    <button className="w-full sm:w-auto px-6 py-2 bg-red-700 text-white rounded ...">Close</button>
+    <button className="w-full sm:w-auto px-6 py-2 bg-red-700 text-white rounded ...">Reset</button>
+    <button className="w-full sm:w-auto px-6 py-2 bg-red-700 text-white rounded ...">Create Rule</button>
+  </div>
+</div>
+```
+
+## Critical Responsive Patterns to Apply
+
+### Pattern 1: Flex with Minimum Widths
+```jsx
+// Always use this pattern for fields that should grow but have a minimum size
+<element className="flex-1 min-w-[XXXpx]" />
+
+// XXX values:
+// - Dropdowns in condition/action rows: 150px
+// - Dropdowns in General Details: 280px
+// - Text inputs: 150px (rows) or 200px (General Details)
+```
+
+### Pattern 2: Controlled Wrapping
+```jsx
+// Desktop: no wrap (flex-nowrap)
+// Mobile/Tablet: allow wrap (flex-wrap)
+<div className="flex flex-wrap lg:flex-nowrap items-center gap-3">
+```
+
+### Pattern 3: Shrink Prevention
+```jsx
+// Elements that should never shrink (checkboxes, action buttons)
+<element className="shrink-0" />
+```
+
+### Pattern 4: Responsive Spacing
+```jsx
+// Section padding: More on large screens, less on mobile
+<div className="p-4 lg:p-6">
+
+// Element gaps: Consistent across sizes
+<div className="gap-3">  // For inline elements (12px)
+<div className="gap-4">  // For form fields (16px)
+```
+
+## Testing Instructions
+
+After applying changes, test in this exact order:
+
+### Test 1: Desktop Viewport (1920px)
+```bash
+# Open DevTools → Responsive Design Mode → 1920x1080
+# Zoom levels to test: 100%, 125%, 150%, 175%
+# Expected: All elements on single rows, no wrapping, no overlap
+```
+
+### Test 2: Laptop Viewport (1366px) - CRITICAL
+```bash
+# Set viewport: 1366x768
+# Zoom levels to test: 100%, 125%, 150%, 175%
+# Expected at 175%: Controlled wrapping, no overlap, all buttons clickable
+```
+
+### Test 3: Tablet Viewport (1024px)
+```bash
+# Set viewport: 1024x768
+# Expected: Condition/Action rows wrap gracefully, buttons remain grouped
+```
+
+### Test 4: Mobile Viewport (375px)
+```bash
+# Set viewport: 375x667
+# Expected: Full vertical stack, full-width buttons, no horizontal scroll
+```
+
+## Expected Behavior Summary
+
+### ✅ At 1920px (100-175% zoom)
+- All rows remain single-line
+- Generous spacing between elements
+- No wrapping occurs
+
+### ✅ At 1366px (100-150% zoom)
+- All rows remain single-line with tighter spacing
+- Elements use minimum widths, fill available space
+- No overlap
+
+### ✅ At 1366px (175% zoom) - CRITICAL TEST
+- Condition/Action rows may wrap to 2 lines
+- Button groups stay together when wrapping
+- Checkboxes + labels stay together
+- No element overlap
+- All buttons remain minimum 40px for clicking
+
+### ✅ At 1024px and below
+- Controlled stacking
+- Full-width or wrapped layout
+- Vertical button arrangement on mobile
+
+## Code Review Checklist
+
+Before submitting changes, verify:
+
+- [ ] Every dropdown button has `min-w-[XXXpx]` class
+- [ ] Every text input has `min-w-[XXXpx]` class
+- [ ] All flexible elements have both `flex-1` AND `min-w-[XXXpx]`
+- [ ] Row containers use `flex flex-wrap lg:flex-nowrap`
+- [ ] Checkboxes and action buttons have `shrink-0`
+- [ ] Consistent gap spacing: `gap-3` or `gap-4`
+- [ ] Button groups wrapped in their own flex containers
+- [ ] Grid layouts use `lg:col-span-2` where needed
+- [ ] All heights are consistent: `h-10` or `h-11`
+- [ ] No hardcoded widths except minimums and fixed elements
+
+## Additional Notes
+
+### Don't Change
+- Color scheme (gray-300, gray-400, red-700, etc.)
+- Button text or labels
+- Form structure or component hierarchy
+- Event handlers or functionality
+- Height values (h-10, h-11)
+
+### Do Change
+- Add/modify width-related classes (`min-w-*`, `flex-1`, `w-full`, etc.)
+- Add/modify flex classes (`flex-wrap`, `flex-nowrap`, `shrink-0`)
+- Add/modify responsive breakpoints (`lg:`, `sm:`, `md:`)
+- Add/modify spacing classes (`gap-*`, `p-*`)
+- Add/modify grid classes for General Details section
+
+### Performance Considerations
+- Avoid adding unnecessary div wrappers
+- Use Tailwind's existing responsive utilities
+- Don't add custom CSS - use Tailwind classes only
+- Maintain component structure for React re-rendering efficiency
+
+## Success Criteria
+
+The form will be considered responsive when:
+
+1. ✅ No element overlap at any viewport size (375px to 1920px+)
+2. ✅ No element overlap at any zoom level (100% to 175%)
+3. ✅ All interactive elements maintain 40px minimum click area
+4. ✅ Layout remains readable and usable at 1366px @ 175% zoom
+5. ✅ Elements wrap gracefully without breaking visual hierarchy
+6. ✅ Form maintains professional appearance across all sizes
+7. ✅ No horizontal scrolling except at extreme zoom + small viewport combos
+
+---
+
+## Quick Start Command
+
+Apply the Tailwind classes specified above to:
+1. `/components/CreateRuleForm.jsx` (or whatever the file path is)
+2. Focus on the three main sections: General Details, Input Conditions, Actions
+3. Update the footer button layout
+4. Test at 1366px @ 175% zoom immediately after changes
+
+**Priority Order**: Fix Input Conditions rows first (most complex), then General Details, then Actions, then Footer.
