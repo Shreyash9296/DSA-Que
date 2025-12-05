@@ -1,0 +1,55 @@
+You have full access to my project code and global CSS.
+
+Goal:
+Make my forms visually consistent so that the structure, hierarchy, spacing, and control sizes look the SAME on any laptop screen (e.g., 14" vs 16") and also remain consistent when the user zooms the browser in/out.
+
+What I want you to do:
+
+1. Form structure & layout
+   - Keep the current visual hierarchy and layout of the form (labels, inputs, buttons, sections, etc.).
+   - Do NOT change the overall structure in a way that breaks the current UX. Only improve consistency and responsiveness.
+   - Center or align the form in a way that looks good on common screen widths (e.g., 1280px, 1440px, 1920px).
+
+2. Unified control styles
+   - Make all form controls match visually:
+     - text inputs
+     - search boxes
+     - textareas
+     - selects
+     - buttons
+   - They should all share:
+     - the same height
+     - consistent font-size
+     - consistent padding
+     - consistent border-radius
+     - consistent border style
+   - Create or reuse shared utility classes (for example: `.form-control` for inputs/selects/textareas and `.btn` for buttons) instead of repeating styles everywhere.
+   - Use my existing class names where possible; don’t rewrite the entire JSX/HTML unless absolutely necessary.
+
+3. Responsive behavior
+   - The layout can adjust for smaller or larger widths, but:
+     - Do NOT change the basic sizes of buttons/inputs across breakpoints.
+     - Only adjust grid/columns/stacking (for example: single column on mobile, two columns on desktop).
+   - Use a max-width container for the form so it doesn’t stretch too wide on large screens, for example `max-width: 600–900px` with `margin: 0 auto;`.
+   - Use `width: 100%` inside the form container for inputs so they fill the available form width, not the entire screen.
+
+4. Zoom behavior
+   - Ensure that when the browser zoom level changes, all controls scale proportionally and still look aligned.
+   - Do NOT use viewport-based font sizes for form controls (avoid `vw` units for fonts).
+   - Prefer `rem`/`em`/`px` with consistent values so the relative proportions stay the same.
+   - Don’t create media queries that drastically change control sizes on different zoom levels or widths.
+
+5. CSS organization
+   - Update my existing global CSS file(s) instead of creating random new ones.
+   - If needed, introduce CSS variables (e.g., `--control-height`, `--control-radius`, `--control-font-size`) to keep the design system consistent.
+   - Clean up obvious duplicate or conflicting styles that might cause inconsistent button/input sizes.
+
+6. Implementation steps
+   - First, identify which components/pages contain forms in this project.
+   - Then propose the common classes and variable names you will use.
+   - Show me the updated CSS and the minimal JSX/HTML changes required so that:
+     - the forms all use the same shared classes
+     - the visual design remains exactly the same or slightly improved, but NOT broken
+   - Explain briefly how the new styles ensure consistency across different screen sizes and zoom levels.
+
+Now, inspect my current form components and global CSS and propose the concrete changes (CSS + JSX/HTML updates) according to the rules above.
