@@ -1,0 +1,113 @@
+# Comprehensive Maker-Checker Implementation Prompt for GitHub Copilot
+
+```
+CONTEXT:
+We need to implement a maker-checker workflow for rule management in our Spring Boot application. Currently, we have an existing rule creation API. Now we need to add approval workflow logic.
+
+DATABASE SCHEMA:
+1. PES_RULE table (Screenshot 2) - Main rule table with STATUS_ID field
+2. PES_RULE_STATE table (Screenshot 1) - Tracks maker-checker workflow with fields:
+   - ID (Primary Key)
+   - OPERATION_STATUS (VARCHAR2(64)) - Values: "DRAFT", "SUBMITTED", "APPROVED", "REJECTED"
+   - MAKER_ID (VARCHAR2(64))
+   - CHECK_ID (VARCHAR2(64))
+   - SUBMITTED_AT (TIMESTAMP(6))
+   - APPROVED_AT (TIMESTAMP(6))
+   - REJECTED_AT (TIMESTAMP(6))
+   - REJECTED_REASON (VARCHAR2(200))
+
+REQUIREMENT:
+Implement a maker-checker workflow with the following APIs:
+
+API 1: CREATE RULE AS DRAFT (POST)
+- Endpoint: POST /api/rules/draft
+- Use existing rule creation logic
+- Create entry in PES_RULE table
+- Create entry in PES_RULE_STATE table with:
+  * OPERATION_STATUS = "DRAFT"
+  * MAKER_ID = current user ID
+  * CHECK_ID = null
+  * All timestamp fields = null
+- Return created rule with rule state
+
+API 2: SUBMIT RULE FOR APPROVAL (PUT)
+- Endpoint: PUT /api/rules/{ruleId}/submit
+- Update PES_RULE_STATE:
+  * OPERATION_STATUS = "SUBMITTED"
+  * SUBMITTED_AT = current timestamp
+  * Validate MAKER_ID matches current user
+- Return updated rule state
+
+API 3: APPROVE RULE (PUT)
+- Endpoint: PUT /api/rules/{ruleId}/approve
+- Update PES_RULE_STATE:
+  * OPERATION_STATUS = "APPROVED"
+  * APPROVED_AT = current timestamp
+  * CHECK_ID = current user ID (checker/approver)
+  * Validate CHECK_ID != MAKER_ID (checker cannot be maker)
+- Return updated rule state
+
+API 4: REJECT RULE (PUT)
+- Endpoint: PUT /api/rules/{ruleId}/reject
+- Request body: { "rejectedReason": "string" }
+- Update PES_RULE_STATE:
+  * OPERATION_STATUS = "REJECTED"
+  * REJECTED_AT = current timestamp
+  * REJECTED_REASON = provided reason
+  * CHECK_ID = current user ID
+- Return updated rule state
+
+TECHNICAL REQUIREMENTS:
+1. Follow existing Spring Boot project structure (Controller -> Service -> Repository pattern)
+2. Create/update these components:
+   - Entity: PesRuleState.java (if not exists)
+   - Repository: PesRuleStateRepository.java
+   - Service Interface: RuleStateService.java
+   - Service Implementation: RuleStateServiceImpl.java
+   - Controller: RuleStateController.java (or add to existing RuleController)
+   - DTOs: RuleStateRequestDTO, RuleStateResponseDTO
+
+3. Validations needed:
+   - Rule must exist before state operations
+   - Only DRAFT rules can be SUBMITTED
+   - Only SUBMITTED rules can be APPROVED/REJECTED
+   - Checker cannot be the same as Maker
+   - Only Maker can submit their own rules
+   - Proper timestamp handling (set only when status changes)
+
+4. Use JPA/Hibernate for database operations
+5. Use proper HTTP status codes (200, 201, 400, 404, 403)
+6. Add exception handling with custom exceptions
+7. Add validation annotations (@Valid, @NotNull, etc.)
+8. Add transactional annotations where needed (@Transactional)
+
+IMPLEMENTATION STEPS:
+Please provide code for:
+1. PesRuleState entity class with proper JPA annotations
+2. PesRuleStateRepository interface
+3. RuleStateService interface with method signatures
+4. RuleStateServiceImpl with complete business logic
+5. Controller endpoints with proper request/response mappings
+6. DTO classes for request and response
+7. Custom exception classes if needed
+8. Any utility classes for validation
+
+NOTES:
+- Reuse existing rule creation logic for draft API
+- Ensure proper relationship between PES_RULE and PES_RULE_STATE tables
+- Consider adding audit logging for state changes
+- Add appropriate comments in code
+- Follow Spring Boot best practices and existing code conventions in the repository
+```
+
+---
+
+This prompt provides:
+- Clear context about the existing system
+- Detailed database schema information
+- Specific API requirements with endpoints and business logic
+- Technical implementation guidelines
+- Step-by-step breakdown of what needs to be created
+- Validation rules and constraints
+
+Copilot should be able to generate comprehensive code based on this structured prompt while accessing your existing repository context.
