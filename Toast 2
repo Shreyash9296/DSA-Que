@@ -1,0 +1,216 @@
+import React from 'react';
+import { useEffect } from "react";
+
+const Toast = ({ toastBody, onClose }) => {
+  console.log("toastBody", toastBody?.status, toastBody?.message);
+
+  useEffect(() => {
+    if (!toastBody) return;
+
+    const duration = toastBody.status === "success" ? 3000 : 6000;
+
+    if (typeof onClose === 'function') {
+      const timer = setTimeout(() => onClose(), duration);
+      return () => clearTimeout(timer);
+    }
+  }, [toastBody, onClose]);
+
+  if (!toastBody) {
+    return null;
+  }
+
+  // Extract data
+  let status = "error";
+  let message = "";
+  let statusCode = "";
+  let errorCode = "";
+
+  if (toastBody.props && toastBody.props.children) {
+    const children = toastBody.props.children;
+
+    if (children[0] && typeof children[0] === "string") {
+      status = children[0].toLowerCase().includes("error") ? 'error' : 'success';
+    }
+
+    if (children[1] && typeof children[1] === 'number') {
+      statusCode = children[1].toString();
+    }
+
+    if (children[4] && typeof children[4] === 'string') {
+      errorCode = children[4];
+    }
+
+    if (children[7] && typeof children[7] === 'string') {
+      message = children[7];
+    }
+  } else if (toastBody.name === "AxiosError" || toastBody.isAxiosError) {
+    status = 'error';
+    statusCode = toastBody.response?.status?.toString() || toastBody.status?.toString() || "";
+    errorCode = toastBody.code || "";
+    message = toastBody.response?.data?.message || toastBody.message || 'An error occurred, specific error message not defined';
+  } else if (typeof toastBody === "object" && toastBody.status && toastBody.message) {
+    status = toastBody.status;
+    message = toastBody.message;
+    statusCode = toastBody.statusCode || "";
+    errorCode = toastBody.errorCode || "";
+  } else if (typeof toastBody === 'string') {
+    message = toastBody;
+    status = 'error';
+  }
+
+  const isSuccess = status === "success" || 
+                    (typeof status === 'number' && status >= 200 && status < 300);
+
+  console.log("Toast debug:", {
+    status,
+    message,
+    statusCode,
+    errorCode,
+    isSuccess,
+    toastBody,
+    shouldRender: !!message || !!statusCode || !!errorCode
+  });
+
+  return (
+    <div 
+      className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-3 duration-500"
+      role="alert"
+      tabIndex={-1}
+    >
+      <div className="w-[420px] bg-white rounded-xl shadow-2xl border-2 border-gray-200 overflow-hidden">
+        <div className="p-5">
+          <div className="flex items-start gap-4">
+            {/* Status Icon with Enhanced Multi-ring Pulse */}
+            <div className="flex-shrink-0 relative">
+              <div className={`
+                w-11 h-11 rounded-full flex items-center justify-center
+                ${isSuccess ? 'bg-green-600' : 'bg-red-600'}
+                shadow-lg
+              `}>
+                {isSuccess ? (
+                  <svg
+                    className="w-6 h-6 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-6 h-6 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                )}
+              </div>
+
+              {/* Enhanced Multi-ring Pulse Animation */}
+              <div 
+                className={`absolute inset-0 rounded-full animate-ping ${isSuccess ? 'bg-green-600' : 'bg-red-600'} opacity-30`}
+                style={{ animationDuration: '1.5s' }}
+              />
+              <div 
+                className={`absolute inset-0 rounded-full animate-ping ${isSuccess ? 'bg-green-600' : 'bg-red-600'} opacity-20`}
+                style={{ animationDuration: '2s', animationDelay: '0.3s' }}
+              />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              {/* Title */}
+              <h4 className="text-base font-bold mb-1.5 text-gray-900">
+                {isSuccess ? 'Transaction Successful' : 'Transaction Failed'}
+              </h4>
+
+              {/* Status Code (Green/Red) + Error Code (Black) */}
+              {(statusCode || errorCode) && (
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {/* Status Badge - Green/Red based on status */}
+                  {statusCode && (
+                    <span className={`
+                      inline-flex items-center px-3 py-1 rounded-md text-xs font-bold
+                      ${isSuccess ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}
+                    `}>
+                      {statusCode}
+                    </span>
+                  )}
+
+                  {/* Error Code - Always Black */}
+                  {errorCode && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-mono font-bold bg-black text-white">
+                      {errorCode}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Message */}
+              {message && (
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {message}
+                </p>
+              )}
+            </div>
+
+            {/* HSBC Red Close Button - Variant C Style (Premium with background) */}
+            <button
+              onClick={onClose}
+              className="flex-shrink-0 p-2 rounded-lg transition-all bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
+              aria-label="Close"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Progress Bar - Green/Red based on status */}
+        <div className="h-1.5 bg-gray-100">
+          <div 
+            className={`h-full w-full origin-left animate-shrink ${isSuccess ? 'bg-green-600' : 'bg-red-600'}`}
+            style={{ animationDuration: '5s' }}
+          />
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes shrink {
+          from { transform: scaleX(1); }
+          to { transform: scaleX(0); }
+        }
+        .animate-shrink {
+          animation: shrink linear forwards;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default Toast;
