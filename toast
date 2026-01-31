@@ -1,0 +1,337 @@
+Toast
+
+import React from 'react'
+
+import (useEffect } from "react";
+
+const Toast ((toastBody, onClose }) => {
+
+console.log("toastBody", toastBody?.status, toastBody?.message);
+
+useEffect(() =>
+
+if (ItoastBody) return;
+
+const duration toastBody.status === "success" ? 3000: 6000;
+
+if(typeof onclose==='function'){
+
+}
+
+const timer setTimeout(() => onClose(), duration);
+
+return () => clearTimeout(timer);
+
+[toastBody, onClose]);
+
+if (ItoastBody) {
+
+return null;
+
+}
+
+{/* extract data*/ }
+
+let status = "error";
+
+let message = "";
+
+let statusCode
+
+let errorCode = "";
+
+if (toastBody.props && toastBody.props.children) { const children toastBody.props.children;
+
+if (children[0] && typeof children[0] === "string") {
+
+I
+
+status children[0].toLowerCase().includes ("error") ? 'error': 'success'
+
+}
+
+'number') { if (children[1] && typeof children[1]
+
+statusCode children[1].toString();
+
+} if (children[4] && typeof children[4] === 'string') {
+
+errorCode children[4];
+
+} if (children[7] && typeof children[7] == 'string') {
+
+message children[7];
+else if (toastBody.name "AxiosError" || toastBody.IsAxiosError) (
+
+status 'error';
+
+statusCode toastBody.response).status?.toString() || toastilody.status).toString() || "";
+
+errorCode toastBody.code ||"";
+
+message toastBody.response?.data?.message || toastilody.message || 'An error occured, specific error message not defined
+
+ise if (typeof toastBody status toastBody.status;
+
+"object & toastñody.status M toastilody.message) (
+
+message toastBody.message;
+
+statuscode toastBody.statusCode ||"";
+
+errorCode toastBody.errorCode ||
+
+else if (typeof toastBody
+
+'string') {
+
+message toastBody;
+
+status 'error';
+
+const issuccess st
+
+"success";
+
+I
+
+console.log("Toast debug', (
+
+status,
+
+message,
+
+statusCode,
+
+errorCode,
+
+isSuccess,
+
+toastBody,
+
+shouldtender: Ilmessage || 11statusCode ||
+
+HerrorCode
+
+containerclass issuccess
+
+"max-w-sa w-full mx-auto bg-green-100 border-1-4 border-green-400 fixed top-20 left-1/2 transfura -translate-x-1/2 1-50 rounded-Ig sh "
+
+max-w-sa w-full mx-auto bg-red-100 border-1-4 border-red-400 fixed top-20 left-1/2 transfors -translate-x-1/2 2-50
+
+rounded-1g shad
+
+titleclass isSuccess
+?
+"text-sa font-semibold text-green-800
+:
+'text-sa font-semibold text-red-000
+
+const badgeclass - isSuccess
+
+? 'px-2 py-1 rounded-full bg-green-200 text-green-700'
+
+: 'px-2 py-1 rounded-full bg-red-200 text-red-700';
+
+const messageClass - isSuccess
+
+? 'st-2 text-sam text-green-700 dark:text-neutral-400'
+
+: 'nt-2 text-sm text-red-700 dark:text-neutral-400';
+
+const buttonClass isSuccess
+
+? 'ml-4 flex-shrink-400 rounded-md p-1.5 transition-colors text-green-400 hover-text-green-600 hover-bg-green-100*
+
+: 'al-4 flex-shrink-400 rounded-md p-1.5 transition-colors text-red-400 hover-red-green-600 hover-bg-red-100";
+return (
+
+<div className=(containerClass)
+
+role 'alert'
+
+tabIndex=-1'>
+
+<div className='flex items-start p-4'>
+
+(/" icon */)
+
+<div className="flex-shrink-e">
+
+(issuccess? (
+
+<div className='flex items-center justify-center w-8 h-8 bg-green-400 rounded-full'>
+
+<svg
+
+className'w-5 h-5 text-white
+
+xmlns="http://www.w3.org/2000/svg"
+
+fill-'none'
+
+stroke currentColor'
+
+viewBox="0 0 18 18'>
+
+Rpath
+
+stroketinecap'round"
+
+strokelinejoin'round"
+
+strokewidth='2'
+
+d="M16 8A8 8 0 1 1 0 838 8 0 0 1 16 Ozm-3.97-3.032.75.75
+
+0-1.06
+
+1.0616.97
+
+11.033.75.75
+
+</svg>
+
+</div>
+
+):(
+
+00-1.08.02217.477 9.417 5.384 7.3238.75.75 0 0
+
+<div className-'flex items-center justify-center w-8 h-8 bg-red-400 rounded-full'>
+
+<svg
+
+className 'w-5 h-5 text-white'
+
+xmlns="http://ww.w3.org/2000/svg"
+
+fill="none
+
+stroke currentColor'
+
+viewBox'e 0 24 24'>
+
+<path
+
+strokeLinecap-round"
+
+stroketinejoin-'round"
+
+strokewidth='2'
+
+d="M13 16h-1v-4hime-4h.0121 1229 9 0 11-18 09 90 0118 02
+
+Auto Altads Always
+
+/></svg>
+)}
+
+</div>
+
+{/* content to be shown*/)
+
+<div className='ml-3 flex-1'>
+
+<div className='flex items-center justify-between'>
+
+<h3 className=[titleclass}>
+
+[isSuccess? 'Success': 'Error!'}
+
+</h3>
+
+</div>
+
+{/* status code and error code*/}
+
+{(statusCode || errorCode) && (
+
+<div className='mt-1 flex gap-2 text-xs'>
+
+{statusCode && (
+
+<span className={badgeClass)> Status: (statusCode)
+
+</span>
+
+)}
+
+(errorCode && (
+
+)}
+
+<span className=(badgeClass}> Code : (errorCode)
+
+</span>
+
+)}
+
+</div>
+
+(message && (
+
+<p className={messageClass)> (message)
+
+</p>
+
+)}
+
+</div>
+
+<button
+
+onclick=(onclose)
+
+className (buttonClass)
+
+aria-label='close'
+
+<svg
+
+className 'h-4 w-4'
+
+fill-'none'
+
+xmlns="http://www.w3.org/2000/svg"
+
+stroke='currentColor'
+
+viewBox='e0 24 24'
+<svg
+
+>
+
+className='h-4 w-4'
+
+xmlns="http://www.w3.org/2000/svg"
+
+fill='none'
+
+stroke='currentColor'
+
+viewBox='00 24 24'
+
+<path
+
+strokeLinecap='round'
+
+strokeLinejoin='round'
+
+strokewidth='2'
+
+d="M6 18L18 6M6 6112 12" />
+
+</svg>
+
+</button>
+
+</div>
+
+</div>
+
+);
+
+};
+
+export default Toast;
