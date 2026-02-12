@@ -573,4 +573,398 @@ export default function Queue() {
               </div>
               <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
                 <BarChart3 className="w-6 h-6 text-gray-600" />
-          
+              </div>
+            </div>
+          </div>
+
+          {/* Pending Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                  Pending
+                </p>
+                <p className="text-2xl font-bold text-blue-700">
+                  {stats.pending}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Clock className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Approved Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                  Approved
+                </p>
+                <p className="text-2xl font-bold text-emerald-700">
+                  {stats.approved}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-emerald-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Rejected Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                  Rejected
+                </p>
+                <p className="text-2xl font-bold text-red-700">
+                  {stats.rejected}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
+                <Circle className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters Section */}
+        <div className="bg-white rounded-lg border border-gray-200 p-5 mb-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <Filter className="w-5 h-5 text-gray-600" />
+            <h2 className="text-base font-semibold text-gray-900">
+              Filters
+            </h2>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="ml-auto text-sm font-medium text-[#DB0011] hover:text-[#A00010] transition-colors"
+              >
+                Clear All
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Status Filter (Maker Only) */}
+            {view === 'MAKER' && (
+              <SmallSelect
+                label="Status"
+                value={filterStatus}
+                onChange={setFilterStatus}
+                options={statusOptionsNoAll}
+                placeholder={statusPlaceholderText}
+                ariaLabel="Filter by status"
+              />
+            )}
+
+            {/* Data Type Filter */}
+            <SmallSelect
+              label="Data Type"
+              value={filterType}
+              onChange={setFilterType}
+              options={typeOptionsNoAll}
+              placeholder={typePlaceholderText}
+              ariaLabel="Filter by data type"
+            />
+
+            {/* Search Input */}
+            <div className={view === 'MAKER' ? '' : 'md:col-span-2'}>
+              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                Search
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
+                  placeholder="Search by name..."
+                  className="w-full h-10 pl-10 pr-10 border-[1.5px] border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                  aria-label="Search by name"
+                />
+                {filterName && (
+                  <button
+                    onClick={() => setFilterName('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div
+            className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6"
+            role="alert"
+            aria-live="polite"
+          >
+            <p className="text-sm font-medium text-red-800">
+              {error}
+            </p>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div
+            className="bg-white rounded-lg border border-gray-200 p-12 text-center"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div className="inline-block w-8 h-8 border-4 border-gray-200 border-t-[#DB0011] rounded-full animate-spin"></div>
+            <p className="mt-4 text-sm text-gray-600">
+              Loading queue data...
+            </p>
+          </div>
+        )}
+
+        {/* Data Table Section */}
+        {!loading && !error && (
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full" role="table" aria-label="Queue requests">
+                
+                {/* Screen Reader Caption */}
+                <caption className="sr-only">
+                  {view === 'MAKER' ? 'Maker queue requests' : 'Checker pending approvals'}
+                </caption>
+                
+                {/* Table Header */}
+                <thead>
+                  <tr className="bg-gray-100 border-b-2 border-gray-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                      Data Type
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide hidden lg:table-cell">
+                      Description
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                      Submitted At
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                
+                {/* Table Body */}
+                <tbody>
+                  {pagedRows.length === 0 ? (
+                    
+                    /* Empty State */
+                    <tr>
+                      <td colSpan="6" className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                            <Search className="w-8 h-8 text-gray-400" />
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 mb-1">
+                            No requests found
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {hasActiveFilters ? 'Try adjusting your filters' : 'No queue items available'}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    
+                    /* Data Rows */
+                    pagedRows.map((row, index) => (
+                      <tr
+                        key={row.id}
+                        id={`row-${index}`}
+                        tabIndex={0}
+                        onKeyDown={(e) => handleRowKeyDown(e, index)}
+                        className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                        onClick={() => handleAction(row)}
+                        role="row"
+                      >
+                        <td className="px-4 py-4 text-sm font-medium text-gray-800">
+                          {prettyType(row.type)}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-800">
+                          {row.name}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600 hidden lg:table-cell max-w-xs truncate">
+                          {row.description}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {row.submittedAt
+                            ? new Date(row.submittedAt).toLocaleString('en-US', {
+                                month: '2-digit',
+                                day: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : '-'}
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusCell s={row.uiStatus} />
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAction(row);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#DB0011] text-white text-sm font-medium rounded-md hover:bg-[#A00010] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all"
+                            aria-label={`Open ${prettyType(row.type)} ${row.name}`}
+                          >
+                            Open
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Section */}
+            {pageCount > 1 && (
+              <div className="border-t border-gray-200 px-4 py-4 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  
+                  {/* Items Count */}
+                  <div className="text-sm text-gray-600">
+                    Showing{' '}
+                    <span className="font-medium text-gray-900">
+                      {startIndex + 1}-{Math.min(startIndex + perPage, filteredRows.length)}
+                    </span>{' '}
+                    of{' '}
+                    <span className="font-medium text-gray-900">
+                      {filteredRows.length}
+                    </span>{' '}
+                    items
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center gap-2">
+                    
+                    {/* Previous Button */}
+                    <button
+                      onClick={handlePrevPage}
+                      disabled={selectedPage === 0}
+                      className="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: pageCount }, (_, i) => i).map((pageIndex) => {
+                        const showPage =
+                          pageIndex === 0 ||
+                          pageIndex === pageCount - 1 ||
+                          Math.abs(pageIndex - selectedPage) <= 1;
+
+                        const showEllipsis =
+                          (pageIndex === 1 && selectedPage > 3) ||
+                          (pageIndex === pageCount - 2 && selectedPage < pageCount - 4);
+
+                        if (showEllipsis) {
+                          return (
+                            <span key={pageIndex} className="px-2 text-gray-500">
+                              ...
+                            </span>
+                          );
+                        }
+
+                        if (!showPage) return null;
+
+                        return (
+                          <button
+                            key={pageIndex}
+                            onClick={() => handlePageClick(pageIndex)}
+                            className={`min-w-[36px] h-9 px-3 rounded-md text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              pageIndex === selectedPage
+                                ? 'bg-[#DB0011] text-white'
+                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                            aria-label={`Go to page ${pageIndex + 1}`}
+                            aria-current={pageIndex === selectedPage ? 'page' : undefined}
+                          >
+                            {pageIndex + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={handleNextPage}
+                      disabled={selectedPage === pageCount - 1}
+                      className="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label="Next page"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Global CSS Animations */}
+      <style jsx global>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-slideDown {
+          animation: slideDown 200ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border-width: 0;
+        }
+      `}</style>
+    </div>
+  );
+}
