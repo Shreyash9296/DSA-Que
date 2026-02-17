@@ -1,13 +1,143 @@
-function DateFilter({ label, value, onChange, isOpen, onToggle }) {
+/**
+ * DateFilter.jsx  –  Classic Red  |  Uses react-day-picker directly
+ * Tailwind CSS + Plain JS  |  Copy-paste ready
+ *
+ * Install dependency (if not already):
+ *   npm install react-day-picker
+ *
+ * EXPORTS:
+ *   DateFilter   – toggle button + centred modal with DayPicker inside
+ *   iRange       – range-check helper for filteredRows useMemo
+ *
+ * USAGE IN Queue.jsx:
+ *   import { DateFilter, iRange } from "./DateFilter";
+ *
+ *   const [submittedRange, setSubmittedRange] = useState({ from: undefined, to: undefined });
+ *   const [approvedRange,  setApprovedRange]  = useState({ from: undefined, to: undefined });
+ *   const [activeFilter,   setActiveFilter]   = useState(null);
+ *   const toggle = useCallback(name => setActiveFilter(c => c === name ? null : name), []);
+ *
+ *   <DateFilter
+ *     label="Submitted Date"
+ *     value={submittedRange}
+ *     onChange={setSubmittedRange}
+ *     isOpen={activeFilter === "submitted"}
+ *     onToggle={() => toggle("submitted")}
+ *   />
+ *
+ *   // In your filteredRows:
+ *   const submittedPass = iRange(r.submittedAt, submittedRange);
+ *   const approvedPass  = iRange(r.approveAt,   approvedRange);
+ */
 
+import { useEffect } from "react";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+
+/* ─── iRange helper ───────────────────────────────────────────────────────
+   Returns true when `date` falls inside the selected `range` (inclusive).
+   Returns true (pass-through) when no range is selected yet.
+   Fixed version: uses >= and <= (original code had a missing operator bug).
+──────────────────────────────────────────────────────────────────────────── */
+export function iRange(date, range) {
+  if (!range?.from || !range?.to) return true;   // no filter → show all
+  if (!date) return false;
+  const ts     = new Date(date).getTime();
+  const fromTs = new Date(range.from).setHours(0, 0, 0, 0);
+  const toTs   = new Date(range.to).setHours(23, 59, 59, 999);
+  return ts >= fromTs && ts <= toTs;
+}
+
+/* ─── DayPicker classNames ────────────────────────────────────────────────
+   Maps every DayPicker internal slot to Tailwind classes.
+   This replaces the need for any custom CSS or react-day-picker/dist/style.css
+   overrides — Tailwind takes full control.
+──────────────────────────────────────────────────────────────────────────── */
+const dayPickerClassNames = {
+  root:              "w-full select-none",
+  months:            "flex flex-col",
+  month:             "w-full",
+
+  // Header row: "< February 2026 >"
+  caption:           "flex items-center justify-between px-1 mb-4",
+  caption_label:     "text-lg font-bold text-gray-900 tracking-tight",
+  nav:               "flex items-center gap-1",
+  nav_button:        [
+    "w-8 h-8 flex items-center justify-center rounded-lg",
+    "text-red-600 text-xl font-light leading-none",
+    "hover:bg-red-50 active:bg-red-100",
+    "transition-colors bg-transparent border-0 cursor-pointer",
+  ].join(" "),
+  nav_button_previous: "",   // no extra class needed; nav_button handles both
+  nav_button_next:     "",
+
+  // Weekday headers: Su Mo Tu We Th Fr Sa
+  table:             "w-full border-collapse",
+  head_row:          "grid grid-cols-7 mb-1",
+  head_cell:         "text-center text-xs font-semibold text-gray-400 py-1 tracking-wide",
+
+  // Day rows
+  row:               "grid grid-cols-7",
+  cell:              "relative flex items-center justify-center h-11",
+
+  // Individual day button (base — variants below override)
+  day:               [
+    "relative z-10 w-9 h-9 flex items-center justify-center",
+    "rounded-full border-0 text-sm font-normal text-gray-800",
+    "transition-all duration-100 cursor-pointer bg-transparent",
+    "hover:bg-red-50 hover:text-red-600 hover:scale-110",
+  ].join(" "),
+
+  // Today (not selected)
+  day_today:         "ring-2 ring-red-600 text-red-600 font-bold",
+
+  // Outside current month
+  day_outside:       "text-gray-300 hover:bg-transparent hover:text-gray-300 hover:scale-100 cursor-default",
+
+  // Disabled days
+  day_disabled:      "text-gray-200 cursor-not-allowed hover:bg-transparent hover:scale-100",
+
+  // Range start & end — dark-red filled circle
+  day_range_start:   "!bg-red-800 !text-white !font-bold hover:!bg-red-900 hover:!text-white hover:scale-100",
+  day_range_end:     "!bg-red-800 !text-white !font-bold hover:!bg-red-900 hover:!text-white hover:scale-100",
+
+  // Days inside range (between start and end)
+  day_range_middle:  "rounded-none !text-red-800 !font-medium !bg-red-100 hover:!bg-red-100 hover:!text-red-800 hover:scale-100",
+
+  // Selected single day (when mode="single", not used in range mode)
+  day_selected:      "!bg-red-600 !text-white !font-bold hover:!bg-red-700",
+
+  // Hidden days
+  day_hidden:        "invisible",
+};
+
+/* ─── DayPicker styles ────────────────────────────────────────────────────
+   Only the range-middle band border needs an inline style because
+   Tailwind cannot conditionally add top/bottom borders as a class variant.
+──────────────────────────────────────────────────────────────────────────── */
+const dayPickerStyles = {
+  day_range_middle: {
+    borderTop:    "1.5px solid #fca5a5",   // red-300
+    borderBottom: "1.5px solid #fca5a5",
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DateFilter  –  main export
+   Props:
+     label     {string}                           e.g. "Submitted Date"
+     value     {{ from: Date|undefined, to: Date|undefined }}
+     onChange  {function}                         range state setter
+     isOpen    {boolean}                          controlled from parent
+     onToggle  {function}                         flips open/closed in parent
+═══════════════════════════════════════════════════════════════════════════ */
+export function DateFilter({ label, value, onChange, isOpen, onToggle }) {
   const reset    = () => onChange({ from: undefined, to: undefined });
   const hasValue = !!(value?.from || value?.to);
 
-  /* Short dates for the toggle button */
   const shortDate = (d) =>
     d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" });
 
-  /* Long dates for the chip inside the modal */
   const longDate = (d) =>
     d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -21,7 +151,7 @@ function DateFilter({ label, value, onChange, isOpen, onToggle }) {
       ? `${longDate(value.from)} – ${longDate(value.to)}`
       : null;
 
-  /* Close on Escape */
+  // Close modal on Escape key
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e) => { if (e.key === "Escape") onToggle(); };
@@ -31,9 +161,9 @@ function DateFilter({ label, value, onChange, isOpen, onToggle }) {
 
   return (
     <>
-      {/* ══════════════════════════════════════
+      {/* ═══════════════════════════════════
           Toggle button
-          ══════════════════════════════════════ */}
+          ═══════════════════════════════════ */}
       <button
         type="button"
         onClick={onToggle}
@@ -41,36 +171,30 @@ function DateFilter({ label, value, onChange, isOpen, onToggle }) {
         aria-haspopup="dialog"
         className={[
           "inline-flex items-center gap-1.5 h-8 px-3 rounded-md border-[1.5px]",
-          "bg-white text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer",
+          "bg-white text-sm font-medium whitespace-nowrap cursor-pointer",
+          "transition-all duration-150",
           isOpen
             ? "border-red-600 ring-2 ring-red-100"
             : "border-gray-300 hover:border-gray-400",
         ].join(" ")}
       >
-        {/* Label text */}
+        {/* Label */}
         <span className="text-xs font-semibold text-gray-700">{label}</span>
 
-        {/* Separator */}
         <span className="text-gray-300 text-xs">·</span>
 
-        {/* Date value or placeholder */}
-        <span
-          className={`text-xs ${
-            hasValue ? "text-red-800 font-bold" : "text-gray-400 font-normal"
-          }`}
-        >
+        {/* Value or placeholder */}
+        <span className={`text-xs ${hasValue ? "text-red-800 font-bold" : "text-gray-400"}`}>
           {btnSummary}
         </span>
 
-        {/* Inline clear ✕ (only when a range is selected) */}
+        {/* Clear ✕ — only when a range is selected */}
         {hasValue && (
           <span
             role="button"
             tabIndex={0}
             onClick={(e) => { e.stopPropagation(); reset(); }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") { e.stopPropagation(); reset(); }
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); reset(); } }}
             aria-label={`Clear ${label}`}
             className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer text-xs leading-none"
           >
@@ -78,7 +202,7 @@ function DateFilter({ label, value, onChange, isOpen, onToggle }) {
           </span>
         )}
 
-        {/* Chevron arrow */}
+        {/* Chevron */}
         <svg
           className={[
             "w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-200",
@@ -94,16 +218,16 @@ function DateFilter({ label, value, onChange, isOpen, onToggle }) {
         </svg>
       </button>
 
-      {/* ══════════════════════════════════════
-          Modal (backdrop + card)
-          ══════════════════════════════════════ */}
+      {/* ═══════════════════════════════════
+          Modal overlay + centred card
+          ═══════════════════════════════════ */}
       {isOpen && (
         <>
-          {/* Backdrop – click to close */}
+          {/* Backdrop — click outside to close */}
           <div
             onClick={onToggle}
             aria-hidden="true"
-            className="fixed inset-0 z-40 bg-black/[0.22] backdrop-blur-[2px]"
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
             style={{ animation: "dfBackdrop .15s ease" }}
           />
 
@@ -112,12 +236,7 @@ function DateFilter({ label, value, onChange, isOpen, onToggle }) {
             role="dialog"
             aria-modal="true"
             aria-label={`${label} date picker`}
-            className={[
-              "fixed z-50 bg-white rounded-2xl border border-gray-200 p-5",
-              "w-[380px] max-w-[95vw]",
-              // Tailwind doesn't expose translate(−50%,−50%) as a utility for fixed centering,
-              // so we set top/left via inline style once and keep everything else Tailwind.
-            ].join(" ")}
+            className="fixed z-50 bg-white rounded-2xl border border-gray-200 p-5 w-[380px] max-w-[95vw]"
             style={{
               top: "50%",
               left: "50%",
@@ -126,7 +245,7 @@ function DateFilter({ label, value, onChange, isOpen, onToggle }) {
               animation: "dfModal .18s cubic-bezier(.34,1.2,.64,1)",
             }}
           >
-            {/* ── Card header ── */}
+            {/* Card header */}
             <div className="flex items-start justify-between mb-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">
@@ -136,76 +255,80 @@ function DateFilter({ label, value, onChange, isOpen, onToggle }) {
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Reset link (visible only when a range is selected) */}
                 {hasValue && (
                   <button
                     type="button"
                     onClick={reset}
-                    className="text-xs font-semibold text-red-600 hover:text-red-800
-                               transition-colors bg-transparent border-0 cursor-pointer px-1 py-0.5"
+                    className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors bg-transparent border-0 cursor-pointer px-1 py-0.5"
                   >
                     Reset
                   </button>
                 )}
-
-                {/* Close ✕ */}
                 <button
                   type="button"
                   onClick={onToggle}
                   aria-label="Close calendar"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-sm
-                             bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700
-                             transition-all border-0 cursor-pointer"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-sm bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-all border-0 cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
             </div>
 
-            {/* ── Range summary chip (shown when both dates selected) ── */}
+            {/* Range chip — shown when both dates are picked */}
             {chipSummary && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg
-                              bg-red-50 border border-red-200 mb-4">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 mb-4">
                 <span className="text-sm">📅</span>
                 <span className="text-xs font-semibold text-red-800">{chipSummary}</span>
               </div>
             )}
 
-            {/* ── Calendar grid ── */}
-            <CalendarGrid value={value} onChange={onChange} />
+            {/* ─── DayPicker ─── */}
+            <DayPicker
+              mode="range"
+              selected={value}
+              onSelect={onChange}
+              captionLayout="buttons"
+              showOutsideDays
+              classNames={dayPickerClassNames}
+              styles={dayPickerStyles}
+            />
 
-            {/* ── Apply / Done button ── */}
+            {/* Apply button */}
             <button
               type="button"
               onClick={() => { if (value?.from && value?.to) onToggle(); }}
               disabled={!value?.from || !value?.to}
               className={[
-                "mt-4 w-full py-2.5 rounded-xl border-0 text-sm font-bold",
-                "transition-all duration-150",
+                "mt-4 w-full py-2.5 rounded-xl border-0 text-sm font-bold transition-all duration-150",
                 value?.from && value?.to
                   ? "bg-red-600 hover:bg-red-800 text-white cursor-pointer shadow-md shadow-red-200"
                   : "bg-gray-100 text-gray-400 cursor-not-allowed",
               ].join(" ")}
             >
-              {value?.from && value?.to
-                ? "✓  Apply Filter"
-                : "Select start and end date"}
+              {value?.from && value?.to ? "✓  Apply Filter" : "Select start and end date"}
             </button>
           </div>
         </>
       )}
 
-      {/* ── Keyframes injected once ── */}
+      {/* Keyframe animations */}
       <style>{`
         @keyframes dfModal {
           from { opacity: 0; transform: translate(-50%, -48%) scale(0.95); }
-          to   { opacity: 1; transform: translate(-50%, -50%) scale(1);   }
+          to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
         @keyframes dfBackdrop {
           from { opacity: 0; }
           to   { opacity: 1; }
         }
+
+        /* Strip default DayPicker styles that conflict with Tailwind */
+        .rdp { --rdp-accent-color: #991b1b; --rdp-background-color: #fef2f2; margin: 0; }
+        .rdp-nav_button svg { width: 14px; height: 14px; }
       `}</style>
     </>
   );
 }
+
+export default DateFilter;
