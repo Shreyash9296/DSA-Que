@@ -1,0 +1,217 @@
+// ═══════════════════════════════════════════════════════════════════
+//  DateFilter.jsx  –  Classic Red, DayPicker-based, centered modal
+//
+//  INSTALL (if not already in your project):
+//    npm install react-day-picker date-fns
+//
+//  IMPORT this file:
+//    import DateFilter from "./DateFilter";
+//
+//  ADD the CSS once in your root file (e.g. main.jsx / index.js):
+//    import "react-day-picker/dist/style.css";
+//    import "./datefilter.css";          ← the companion CSS file below
+//
+// ═══════════════════════════════════════════════════════════════════
+
+import { useEffect } from "react";
+import { DayPicker } from "react-day-picker";
+
+/* ─── Palette (change here to re-theme) ─── */
+const RED      = "#C0392B";
+const RED_DARK = "#922B21";
+const RED_BG   = "#fef2f2";
+const RED_BORD = "#fca5a5";
+
+/* ─── Tiny helpers ─── */
+const fmt     = d => d?.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" }) ?? "";
+const fmtLong = d => d?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) ?? "";
+
+/* ═══════════════════════════════════════════════════════════════════
+   <DateFilter />
+
+   Props
+   ─────
+   label     string          Text shown on the toggle button
+   value     { from?: Date, to?: Date }
+   onChange  (val) => void   Called with { from, to } on every change
+   isOpen    boolean
+   onToggle  () => void      Flip isOpen in parent
+
+   Usage (in Queue.jsx)
+   ────────────────────
+   const [subRange, setSubRange] = useState({ from: undefined, to: undefined });
+   const [aprRange, setAprRange] = useState({ from: undefined, to: undefined });
+   const [active,   setActive]   = useState(null);   // "sub" | "apr" | null
+
+   const toggle = key => setActive(c => c === key ? null : key);
+
+   <DateFilter
+     label="Submitted Date"
+     value={subRange}
+     onChange={setSubRange}
+     isOpen={active === "sub"}
+     onToggle={() => toggle("sub")}
+   />
+
+   <DateFilter
+     label="Approved Date"
+     value={aprRange}
+     onChange={setAprRange}
+     isOpen={active === "apr"}
+     onToggle={() => toggle("apr")}
+   />
+
+   iRange helper — paste wherever you filter your rows:
+   ────────────────────────────────────────────────────
+   export function iRange(dateStr, range) {
+     if (!range?.from || !range?.to) return true;
+     if (!dateStr) return false;
+     const ts = new Date(dateStr).getTime();
+     return ts >= new Date(range.from).setHours(0,0,0,0) &&
+            ts <= new Date(range.to).setHours(23,59,59,999);
+   }
+   ═══════════════════════════════════════════════════════════════════ */
+
+export default function DateFilter({ label, value, onChange, isOpen, onToggle }) {
+  const hasValue = !!(value?.from || value?.to);
+  const reset    = () => onChange({ from: undefined, to: undefined });
+
+  const summary = value?.from && value?.to
+    ? `${fmtLong(value.from)} – ${fmtLong(value.to)}`
+    : "Select range";
+
+  /* Close on Escape */
+  useEffect(() => {
+    if (!isOpen) return;
+    const h = e => { if (e.key === "Escape") onToggle(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [isOpen, onToggle]);
+
+  /* Lock body scroll while open */
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
+  return (
+    <>
+      {/* ── Toggle button ── */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          height: 32, padding: "0 12px", borderRadius: 6,
+          border: `1.5px solid ${isOpen ? RED : "#d1d5db"}`,
+          background: "#fff", cursor: "pointer", whiteSpace: "nowrap",
+          fontSize: ".75rem", fontWeight: 600, color: "#374151",
+          boxShadow: isOpen ? `0 0 0 3px ${RED}22` : "none",
+          transition: "all .15s",
+        }}
+      >
+        <span>{label}</span>
+
+        {/* selected range label */}
+        <span style={{ color: hasValue ? RED_DARK : "#9ca3af", fontWeight: hasValue ? 700 : 400 }}>
+          {hasValue
+            ? (value.from && value.to
+                ? `${fmt(value.from)} – ${fmt(value.to)}`
+                : "Partial…")
+            : "Select range"}
+        </span>
+
+        {/* clear button */}
+        {hasValue && (
+          <span
+            role="button"
+            aria-label="Clear"
+            onClick={e => { e.stopPropagation(); reset(); }}
+            style={{ color: "#9ca3af", cursor: "pointer", fontSize: 12, lineHeight: 1 }}
+          >✕</span>
+        )}
+
+        {/* chevron */}
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none"
+          stroke="#9ca3af" strokeWidth={2.5}
+          style={{ transition: "transform .2s", transform: isOpen ? "rotate(180deg)" : "none" }}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {/* ── Backdrop + centered modal ── */}
+      {isOpen && (
+        <>
+          {/* Backdrop — clicking it closes the modal */}
+          <div
+            role="presentation"
+            onClick={onToggle}
+            className="df-backdrop"
+          />
+
+          {/* Modal card */}
+          <div className="df-modal" role="dialog" aria-modal="true" aria-label={label}>
+
+            {/* Header row */}
+            <div className="df-header">
+              <div>
+                <p className="df-header-eyebrow">Date Range</p>
+                <p className="df-header-title">{label}</p>
+              </div>
+              <div className="df-header-actions">
+                {hasValue && (
+                  <button type="button" className="df-reset-btn" onClick={reset}>Reset</button>
+                )}
+                <button type="button" className="df-close-btn" onClick={onToggle}>✕</button>
+              </div>
+            </div>
+
+            {/* Selected range chip */}
+            {value?.from && value?.to && (
+              <div className="df-chip">📅 {summary}</div>
+            )}
+
+            {/* DayPicker in range mode */}
+            <DayPicker
+              mode="range"
+              selected={
+                value?.from && value?.to ? { from: value.from, to: value.to }
+                : value?.from ? { from: value.from }
+                : undefined
+              }
+              onSelect={r => onChange({ from: r?.from, to: r?.to })}
+              showOutsideDays
+              className="rdp-classic-red"   /* ← scoped CSS class — see datefilter.css */
+            />
+
+            {/* Apply / submit button */}
+            <button
+              type="button"
+              className={`df-apply-btn ${value?.from && value?.to ? "df-apply-btn--active" : ""}`}
+              disabled={!value?.from || !value?.to}
+              onClick={() => { if (value?.from && value?.to) onToggle(); }}
+            >
+              {value?.from && value?.to ? "✓ Apply Filter" : "Select start and end date"}
+            </button>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  iRange helper  — copy into your Queue/table component
+// ═══════════════════════════════════════════════════════════════════
+export function iRange(dateStr, range) {
+  if (!range?.from || !range?.to) return true;   // no filter → pass through
+  if (!dateStr) return false;
+  const ts = new Date(dateStr).getTime();
+  return (
+    ts >= new Date(range.from).setHours(0, 0, 0, 0) &&
+    ts <= new Date(range.to).setHours(23, 59, 59, 999)
+  );
+}
