@@ -1,227 +1,211 @@
-/**
- * DateFilter.jsx
- * Centred-modal DayPicker for range filtering.
- * Props: label, value, onChange, ariaLabel, isOpen, onToggle
- */
-import { useEffect } from 'react';
-import { DayPicker } from 'react-day-picker';
-import 'react-day-picker/dist/style.css';
-import { ChevronDown, X } from 'lucide-react';
+function DateFilter({ label, value, onChange, isOpen, onToggle }) {
 
-const ACCENT      = '#DB0011';
-const ACCENT_DARK = '#A8000D';
-
-// ── Replace the two separate open states ──────────────────────────────
-// BEFORE (original):
-const [submittedOpen, setSubmittedOpen] = useState(false);
-const [approvedOpen,  setApprovedOpen]  = useState(false);
-
-// AFTER – single mutual-exclusion state:
-const [activeFilter, setActiveFilter] = useState(null); // 'submitted' | 'approved' | null
-const toggleFilter = useCallback(
-  (name) => setActiveFilter((cur) => (cur === name ? null : name)),
-  [],
-);
-
-
-// ── Replace the two <DateFilter> usages ──────────────────────────────
-<DateFilter
-  label="Submitted Date"
-  value={submittedRange}
-  onChange={setSubmittedRange}
-  ariaLabel="Filter by submitted date range"
-  isOpen={activeFilter === 'submitted'}
-  onToggle={() => toggleFilter('submitted')}
-/>
-
-<DateFilter
-  label="Approved Date"
-  value={approvedRange}
-  onChange={setApprovedRange}
-  ariaLabel="Filter by approved date range"
-  isOpen={activeFilter === 'approved'}
-  onToggle={() => toggleFilter('approved')}
-/>
-
-@keyframes rdpModalIn {
-  from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
-  to   { opacity: 1; transform: translate(-50%, -50%) scale(1);   }
-}
-
-export function DateFilter({ label, value, onChange, ariaLabel, isOpen, onToggle }) {
-  const reset = () => onChange({ from: undefined, to: undefined });
-
-  const summary =
-    value?.from && value?.to
-      ? `${value.from.toLocaleDateString()} – ${value.to.toLocaleDateString()}`
-      : 'Select range';
-
+  const reset    = () => onChange({ from: undefined, to: undefined });
   const hasValue = !!(value?.from || value?.to);
 
-  // Close on Escape
+  /* Short dates for the toggle button */
+  const shortDate = (d) =>
+    d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" });
+
+  /* Long dates for the chip inside the modal */
+  const longDate = (d) =>
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  const btnSummary =
+    hasValue && value.from && value.to
+      ? `${shortDate(value.from)} – ${shortDate(value.to)}`
+      : "Select range";
+
+  const chipSummary =
+    value?.from && value?.to
+      ? `${longDate(value.from)} – ${longDate(value.to)}`
+      : null;
+
+  /* Close on Escape */
   useEffect(() => {
     if (!isOpen) return;
-    const h = (e) => { if (e.key === 'Escape') onToggle(); };
-    document.addEventListener('keydown', h);
-    return () => document.removeEventListener('keydown', h);
+    const handler = (e) => { if (e.key === "Escape") onToggle(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
   }, [isOpen, onToggle]);
 
   return (
     <>
-      {/* ── Toggle button ── */}
+      {/* ══════════════════════════════════════
+          Toggle button
+          ══════════════════════════════════════ */}
       <button
         type="button"
         onClick={onToggle}
-        aria-label={ariaLabel}
         aria-expanded={isOpen}
+        aria-haspopup="dialog"
         className={[
-          'inline-flex items-center gap-1.5 h-8 px-3 rounded-md border-[1.5px]',
-          'bg-white text-sm font-medium transition-all whitespace-nowrap',
+          "inline-flex items-center gap-1.5 h-8 px-3 rounded-md border-[1.5px]",
+          "bg-white text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer",
           isOpen
-            ? 'border-red-600 ring-2 ring-red-100'
-            : 'border-gray-300 hover:border-gray-400',
-        ].join(' ')}
+            ? "border-red-600 ring-2 ring-red-100"
+            : "border-gray-300 hover:border-gray-400",
+        ].join(" ")}
       >
-        <span className="text-xs text-gray-700 font-semibold">{label}</span>
-        <span className={`text-xs ${hasValue ? 'text-red-700 font-semibold' : 'text-gray-400'}`}>
-          {summary}
+        {/* Label text */}
+        <span className="text-xs font-semibold text-gray-700">{label}</span>
+
+        {/* Separator */}
+        <span className="text-gray-300 text-xs">·</span>
+
+        {/* Date value or placeholder */}
+        <span
+          className={`text-xs ${
+            hasValue ? "text-red-800 font-bold" : "text-gray-400 font-normal"
+          }`}
+        >
+          {btnSummary}
         </span>
+
+        {/* Inline clear ✕ (only when a range is selected) */}
         {hasValue && (
           <span
             role="button"
             tabIndex={0}
             onClick={(e) => { e.stopPropagation(); reset(); }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); reset(); } }}
-            className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.stopPropagation(); reset(); }
+            }}
             aria-label={`Clear ${label}`}
+            className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer text-xs leading-none"
           >
-            <X className="w-3 h-3" />
+            ✕
           </span>
         )}
-        <ChevronDown
-          className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-        />
+
+        {/* Chevron arrow */}
+        <svg
+          className={[
+            "w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-200",
+            isOpen ? "rotate-180" : "",
+          ].join(" ")}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
       </button>
 
-      {/* ── Centred modal ── */}
+      {/* ══════════════════════════════════════
+          Modal (backdrop + card)
+          ══════════════════════════════════════ */}
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop – click to close */}
           <div
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
             onClick={onToggle}
             aria-hidden="true"
+            className="fixed inset-0 z-40 bg-black/[0.22] backdrop-blur-[2px]"
+            style={{ animation: "dfBackdrop .15s ease" }}
           />
 
-          {/* Card */}
+          {/* Centred card */}
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={ariaLabel}
-            style={{ animation: 'rdpModalIn 0.15s ease' }}
-            className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-                       bg-white rounded-xl shadow-2xl border border-gray-200
-                       p-4 w-[340px] max-w-[95vw]"
+            aria-label={`${label} date picker`}
+            className={[
+              "fixed z-50 bg-white rounded-2xl border border-gray-200 p-5",
+              "w-[380px] max-w-[95vw]",
+              // Tailwind doesn't expose translate(−50%,−50%) as a utility for fixed centering,
+              // so we set top/left via inline style once and keep everything else Tailwind.
+            ].join(" ")}
+            style={{
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.16), 0 4px 16px rgba(0,0,0,0.08)",
+              animation: "dfModal .18s cubic-bezier(.34,1.2,.64,1)",
+            }}
           >
-            {/* Card header */}
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                {label}
-              </span>
+            {/* ── Card header ── */}
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">
+                  Date Range
+                </p>
+                <h3 className="text-sm font-bold text-gray-900">{label}</h3>
+              </div>
+
               <div className="flex items-center gap-2">
+                {/* Reset link (visible only when a range is selected) */}
                 {hasValue && (
                   <button
                     type="button"
                     onClick={reset}
-                    className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors"
+                    className="text-xs font-semibold text-red-600 hover:text-red-800
+                               transition-colors bg-transparent border-0 cursor-pointer px-1 py-0.5"
                   >
                     Reset
                   </button>
                 )}
+
+                {/* Close ✕ */}
                 <button
                   type="button"
                   onClick={onToggle}
-                  className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                  aria-label="Close calendar"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-sm
+                             bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700
+                             transition-all border-0 cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
+                  ✕
                 </button>
               </div>
             </div>
 
-            {/* Range chip */}
-            {hasValue && (
-              <div className="mb-2 px-2 py-1 rounded-md bg-red-50 border border-red-100 text-xs text-red-700 font-medium">
-                {summary}
+            {/* ── Range summary chip (shown when both dates selected) ── */}
+            {chipSummary && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg
+                              bg-red-50 border border-red-200 mb-4">
+                <span className="text-sm">📅</span>
+                <span className="text-xs font-semibold text-red-800">{chipSummary}</span>
               </div>
             )}
 
-            {/* DayPicker styled to match playground */}
-            <DayPicker
-              mode="range"
-              selected={value}
-              onSelect={onChange}
-              captionLayout="buttons"
-              showOutsideDays
-              classNames={{
-                root:             'text-sm select-none',
-                months:           'flex flex-col',
-                month:            'space-y-1',
-                caption:          'flex justify-between items-center px-1 py-1',
-                caption_label:    'text-sm font-bold text-gray-800',
-                nav:              'flex items-center gap-1',
-                nav_button:       'p-1 rounded hover:bg-gray-100 text-gray-600 transition-colors',
-                table:            'w-full border-collapse',
-                head_row:         'flex',
-                head_cell:        'flex-1 text-center text-[10px] font-semibold text-gray-400 uppercase py-1',
-                row:              'flex w-full mt-1',
-                cell:             'flex-1',
-                day: [
-                  'w-full aspect-square flex items-center justify-center',
-                  'text-sm rounded-full transition-all duration-150 cursor-pointer',
-                  'hover:bg-red-50 hover:text-red-700',
-                ].join(' '),
-                day_today:        'ring-2 ring-red-600 ring-offset-1 font-bold',
-                day_outside:      'text-gray-300 hover:bg-gray-50 hover:text-gray-400',
-                day_disabled:     'text-gray-200 cursor-not-allowed hover:bg-transparent',
-                day_range_start:  'rounded-full',
-                day_range_end:    'rounded-full',
-                day_range_middle: 'rounded-none',
-                day_hidden:       'invisible',
-              }}
-              styles={{
-                day_selected:     { backgroundColor: ACCENT,      color: '#fff' },
-                day_range_start:  { backgroundColor: ACCENT_DARK, color: '#fff', borderRadius: '9999px' },
-                day_range_end:    { backgroundColor: ACCENT_DARK, color: '#fff', borderRadius: '9999px' },
-                day_range_middle: {
-                  backgroundColor: '#fef2f2',
-                  color: ACCENT_DARK,
-                  borderRadius: 0,
-                  borderTop: '1px solid #fecaca',
-                  borderBottom: '1px solid #fecaca',
-                },
-              }}
-            />
+            {/* ── Calendar grid ── */}
+            <CalendarGrid value={value} onChange={onChange} />
 
-            {/* Done */}
+            {/* ── Apply / Done button ── */}
             <button
               type="button"
-              onClick={onToggle}
+              onClick={() => { if (value?.from && value?.to) onToggle(); }}
               disabled={!value?.from || !value?.to}
               className={[
-                'mt-3 w-full py-2 rounded-lg text-sm font-semibold transition-all',
+                "mt-4 w-full py-2.5 rounded-xl border-0 text-sm font-bold",
+                "transition-all duration-150",
                 value?.from && value?.to
-                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed',
-              ].join(' ')}
+                  ? "bg-red-600 hover:bg-red-800 text-white cursor-pointer shadow-md shadow-red-200"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed",
+              ].join(" ")}
             >
-              {value?.from && value?.to ? 'Apply Filter' : 'Select a date range'}
+              {value?.from && value?.to
+                ? "✓  Apply Filter"
+                : "Select start and end date"}
             </button>
           </div>
         </>
       )}
+
+      {/* ── Keyframes injected once ── */}
+      <style>{`
+        @keyframes dfModal {
+          from { opacity: 0; transform: translate(-50%, -48%) scale(0.95); }
+          to   { opacity: 1; transform: translate(-50%, -50%) scale(1);   }
+        }
+        @keyframes dfBackdrop {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+      `}</style>
     </>
   );
 }
-
-
-
