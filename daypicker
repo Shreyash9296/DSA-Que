@@ -1,334 +1,474 @@
-/**
- * DateFilter.jsx  –  Classic Red  |  Uses react-day-picker directly
- * Tailwind CSS + Plain JS  |  Copy-paste ready
- *
- * Install dependency (if not already):
- *   npm install react-day-picker
- *
- * EXPORTS:
- *   DateFilter   – toggle button + centred modal with DayPicker inside
- *   iRange       – range-check helper for filteredRows useMemo
- *
- * USAGE IN Queue.jsx:
- *   import { DateFilter, iRange } from "./DateFilter";
- *
- *   const [submittedRange, setSubmittedRange] = useState({ from: undefined, to: undefined });
- *   const [approvedRange,  setApprovedRange]  = useState({ from: undefined, to: undefined });
- *   const [activeFilter,   setActiveFilter]   = useState(null);
- *   const toggle = useCallback(name => setActiveFilter(c => c === name ? null : name), []);
- *
- *   <DateFilter
- *     label="Submitted Date"
- *     value={submittedRange}
- *     onChange={setSubmittedRange}
- *     isOpen={activeFilter === "submitted"}
- *     onToggle={() => toggle("submitted")}
- *   />
- *
- *   // In your filteredRows:
- *   const submittedPass = iRange(r.submittedAt, submittedRange);
- *   const approvedPass  = iRange(r.approveAt,   approvedRange);
- */
+// ══════════════════════════════════════════════════════════
+//  DateFilter – Style 1 Classic Red  (drop-in replacement)
+//  • Centered modal overlay (fixed, above all content)
+//  • Range selection: click start → click end
+//  • Red filled circles for start/end, light-red band for mid
+//  • Matches the screenshot calendar exactly
+// ══════════════════════════════════════════════════════════
 
-import { useEffect } from "react";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/dist/style.css";
+import { useState, useEffect, useCallback } from "react";
 
-/* ─── iRange helper ───────────────────────────────────────────────────────
-   Returns true when `date` falls inside the selected `range` (inclusive).
-   Returns true (pass-through) when no range is selected yet.
-   Fixed version: uses >= and <= (original code had a missing operator bug).
-──────────────────────────────────────────────────────────────────────────── */
-export function iRange(date, range) {
-  if (!range?.from || !range?.to) return true;   // no filter → show all
-  if (!date) return false;
-  const ts     = new Date(date).getTime();
-  const fromTs = new Date(range.from).setHours(0, 0, 0, 0);
-  const toTs   = new Date(range.to).setHours(23, 59, 59, 999);
-  return ts >= fromTs && ts <= toTs;
+/* ─── Palette ─────────────────────────────────────────── */
+const RED       = "#C0392B";
+const RED_DARK  = "#922B21";
+const RED_BG    = "#fef2f2";
+const RED_BAND  = "#fde8e8";
+const RED_BORD  = "#fca5a5";
+
+/* ─── Helpers ─────────────────────────────────────────── */
+const MONTHS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+];
+const DAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+function today0() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
-/* ─── DayPicker classNames ────────────────────────────────────────────────
-   Maps every DayPicker internal slot to Tailwind classes.
-   This replaces the need for any custom CSS or react-day-picker/dist/style.css
-   overrides — Tailwind takes full control.
-──────────────────────────────────────────────────────────────────────────── */
-const dayPickerClassNames = {
-  root:              "w-full select-none",
-  months:            "flex flex-col",
-  month:             "w-full",
+function sameDay(a, b) {
+  return a && b && a.toDateString() === b.toDateString();
+}
 
-  // Header row: "< February 2026 >"
-  caption:           "flex items-center justify-between px-1 mb-4",
-  caption_label:     "text-lg font-bold text-gray-900 tracking-tight",
-  nav:               "flex items-center gap-1",
-  nav_button:        [
-    "w-8 h-8 flex items-center justify-center rounded-lg",
-    "text-red-600 text-xl font-light leading-none",
-    "hover:bg-red-50 active:bg-red-100",
-    "transition-colors bg-transparent border-0 cursor-pointer",
-  ].join(" "),
-  nav_button_previous: "",   // no extra class needed; nav_button handles both
-  nav_button_next:     "",
+function fmt(d) {
+  if (!d) return "";
+  return d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" });
+}
 
-  // Weekday headers: Su Mo Tu We Th Fr Sa
-  table:             "w-full border-collapse",
-  head_row:          "grid grid-cols-7 mb-1",
-  head_cell:         "text-center text-xs font-semibold text-gray-400 py-1 tracking-wide",
+function fmtLong(d) {
+  if (!d) return "";
+  return d.toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+}
 
-  // Day rows
-  row:               "grid grid-cols-7",
-  cell:              "relative flex items-center justify-center h-11",
+/* ═══════════════════════════════════════════════════════
+   CustomCalendar — pixel-accurate to screenshot
+   ═══════════════════════════════════════════════════════ */
+function CustomCalendar({ value, onChange }) {
+  const ref = value?.from || today0();
+  const [view, setView] = useState({ y: ref.getFullYear(), m: ref.getMonth() });
+  const [hovered, setHovered] = useState(null);
 
-  // Individual day button (base — variants below override)
-  day:               [
-    "relative z-10 w-9 h-9 flex items-center justify-center",
-    "rounded-full border-0 text-sm font-normal text-gray-800",
-    "transition-all duration-100 cursor-pointer bg-transparent",
-    "hover:bg-red-50 hover:text-red-600 hover:scale-110",
-  ].join(" "),
+  const prev = () =>
+    setView((v) => (v.m === 0 ? { y: v.y - 1, m: 11 } : { y: v.y, m: v.m - 1 }));
+  const next = () =>
+    setView((v) => (v.m === 11 ? { y: v.y + 1, m: 0 } : { y: v.y, m: v.m + 1 }));
 
-  // Today (not selected)
-  day_today:         "ring-2 ring-red-600 text-red-600 font-bold",
+  const firstDay     = new Date(view.y, view.m, 1).getDay();
+  const daysInMonth  = new Date(view.y, view.m + 1, 0).getDate();
+  const prevMonthDays= new Date(view.y, view.m, 0).getDate();
 
-  // Outside current month
-  day_outside:       "text-gray-300 hover:bg-transparent hover:text-gray-300 hover:scale-100 cursor-default",
+  /* Build grid cells */
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) {
+    cells.push({ date: new Date(view.y, view.m - 1, prevMonthDays - firstDay + 1 + i), outside: true });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ date: new Date(view.y, view.m, d), outside: false });
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push({ date: new Date(view.y, view.m + 1, cells.length - daysInMonth - firstDay + 1), outside: true });
+  }
 
-  // Disabled days
-  day_disabled:      "text-gray-200 cursor-not-allowed hover:bg-transparent hover:scale-100",
+  const rangeEnd = value?.to || (value?.from && hovered) || null;
 
-  // Range start & end — dark-red filled circle
-  day_range_start:   "!bg-red-800 !text-white !font-bold hover:!bg-red-900 hover:!text-white hover:scale-100",
-  day_range_end:     "!bg-red-800 !text-white !font-bold hover:!bg-red-900 hover:!text-white hover:scale-100",
+  /* Classify a date for styling */
+  const classify = (d) => {
+    const t  = d.getTime();
+    const isStart = value?.from && sameDay(d, value.from);
+    const isEnd   = value?.to   && sameDay(d, value.to);
+    const isToday = sameDay(d, today0());
 
-  // Days inside range (between start and end)
-  day_range_middle:  "rounded-none !text-red-800 !font-medium !bg-red-100 hover:!bg-red-100 hover:!text-red-800 hover:scale-100",
+    let isMid = false;
+    if (value?.from) {
+      const lo = value.from.getTime();
+      const hi = rangeEnd ? rangeEnd.getTime() : lo;
+      const [mn, mx] = lo < hi ? [lo, hi] : [hi, lo];
+      isMid = t > mn && t < mx;
+    }
+    return { isStart, isEnd, isToday, isMid };
+  };
 
-  // Selected single day (when mode="single", not used in range mode)
-  day_selected:      "!bg-red-600 !text-white !font-bold hover:!bg-red-700",
+  const handleClick = (date, outside) => {
+    if (outside) return;
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
 
-  // Hidden days
-  day_hidden:        "invisible",
+    if (!value?.from || (value.from && value.to)) {
+      onChange({ from: d, to: undefined });
+    } else {
+      if (sameDay(d, value.from)) { onChange({ from: undefined, to: undefined }); return; }
+      if (d < value.from) onChange({ from: d, to: value.from });
+      else onChange({ from: value.from, to: d });
+    }
+  };
+
+  const handleHover = (date, outside) => {
+    if (outside || !value?.from || value?.to) return;
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    setHovered(d);
+  };
+
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+
+  return (
+    <div style={{ userSelect: "none", width: "100%" }}>
+      {/* ── Navigation ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px", marginBottom: 16 }}>
+        <button onClick={prev} aria-label="Previous month" style={navBtnStyle}>‹</button>
+        <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "#1a1a1a" }}>
+          {MONTHS[view.m]} {view.y}
+        </span>
+        <button onClick={next} aria-label="Next month" style={navBtnStyle}>›</button>
+      </div>
+
+      {/* ── Weekday headers ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 4 }}>
+        {DAYS.map((d) => (
+          <div key={d} style={{ textAlign: "center", fontSize: ".75rem", fontWeight: 600, color: "#9ca3af", padding: "4px 0" }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Day grid ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {rows.map((row, ri) => (
+          <div key={ri} style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)" }}>
+            {row.map(({ date, outside }, ci) => {
+              const { isStart, isEnd, isToday, isMid } = classify(date);
+              const isSelected = isStart || isEnd;
+
+              /* Range band logic */
+              const lo      = value?.from?.getTime();
+              const hi      = rangeEnd?.getTime();
+              const mn      = lo && hi ? Math.min(lo, hi) : null;
+              const mx      = lo && hi ? Math.max(lo, hi) : null;
+              const t       = date.getTime();
+              const inRange = mn && mx && t >= mn && t <= mx;
+              const showBand      = !outside && inRange && mn !== mx;
+              const bandFull      = inRange && !isStart && !isEnd;
+              const bandRight     = isStart && hi && hi > lo && !isEnd;
+              const bandLeft      = isEnd   && lo && lo < hi && !isStart;
+              const bandRightRev  = isStart && hi && hi < lo;
+              const bandLeftRev   = isEnd   && lo && lo > hi;
+
+              /* Day button style */
+              let dayBg    = "transparent";
+              let dayColor = outside ? "#d1d5db" : "#1a1a1a";
+              let dayFw    = 400;
+              let dayBox   = "none";
+
+              if (isSelected)      { dayBg = RED_DARK; dayColor = "#fff"; dayFw = 700; }
+              else if (isToday)    { dayBox = `0 0 0 2px ${RED}`; dayColor = RED; dayFw = 700; }
+              else if (isMid)      { dayColor = RED_DARK; dayFw = 500; }
+
+              return (
+                <div
+                  key={ci}
+                  style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", height: 44 }}
+                  onMouseEnter={() => handleHover(date, outside)}
+                  onMouseLeave={() => setHovered(null)}
+                >
+                  {/* Band layers */}
+                  {showBand && bandFull && (
+                    <div style={bandStyle()} />
+                  )}
+                  {showBand && (bandRight || bandRightRev) && (
+                    <div style={bandStyle("left")} />
+                  )}
+                  {showBand && (bandLeft || bandLeftRev) && (
+                    <div style={bandStyle("right")} />
+                  )}
+
+                  <button
+                    onClick={() => handleClick(date, outside)}
+                    tabIndex={outside ? -1 : 0}
+                    aria-label={date.toDateString()}
+                    style={{
+                      position: "relative", zIndex: 2,
+                      width: 38, height: 38,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      borderRadius: "50%", border: "none",
+                      background: dayBg, color: dayColor,
+                      fontWeight: dayFw, fontSize: ".9375rem",
+                      cursor: outside ? "default" : "pointer",
+                      boxShadow: dayBox,
+                      transition: "background .15s, color .15s, transform .1s",
+                      fontFamily: "inherit",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected && !outside) {
+                        e.currentTarget.style.background = RED_BG;
+                        e.currentTarget.style.color = RED;
+                        e.currentTarget.style.transform = "scale(1.08)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected && !outside) {
+                        e.currentTarget.style.background = dayBg;
+                        e.currentTarget.style.color = dayColor;
+                        e.currentTarget.style.transform = "scale(1)";
+                      }
+                    }}
+                  >
+                    {date.getDate()}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Inline style helpers ── */
+const navBtnStyle = {
+  background: "none", border: "none", cursor: "pointer",
+  padding: "6px 10px", borderRadius: 8,
+  color: RED, fontSize: 22, fontWeight: 300,
+  lineHeight: 1, transition: "background .15s",
 };
 
-/* ─── DayPicker styles ────────────────────────────────────────────────────
-   Only the range-middle band border needs an inline style because
-   Tailwind cannot conditionally add top/bottom borders as a class variant.
-──────────────────────────────────────────────────────────────────────────── */
-const dayPickerStyles = {
-  day_range_middle: {
-    borderTop:    "1.5px solid #fca5a5",   // red-300
-    borderBottom: "1.5px solid #fca5a5",
-  },
-};
+function bandStyle(side) {
+  const base = {
+    position: "absolute", top: "50%", height: 38,
+    transform: "translateY(-50%)", zIndex: 1, pointerEvents: "none",
+    background: RED_BAND,
+    borderTop: `1.5px solid ${RED_BORD}`,
+    borderBottom: `1.5px solid ${RED_BORD}`,
+  };
+  if (side === "left")  return { ...base, left: 0, right: "50%" };
+  if (side === "right") return { ...base, left: "50%", right: 0 };
+  return { ...base, left: 0, right: 0 };
+}
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   DateFilter  –  main export
-   Props:
-     label     {string}                           e.g. "Submitted Date"
-     value     {{ from: Date|undefined, to: Date|undefined }}
-     onChange  {function}                         range state setter
-     isOpen    {boolean}                          controlled from parent
-     onToggle  {function}                         flips open/closed in parent
-═══════════════════════════════════════════════════════════════════════════ */
-export function DateFilter({ label, value, onChange, isOpen, onToggle }) {
-  const reset    = () => onChange({ from: undefined, to: undefined });
+/* ═══════════════════════════════════════════════════════
+   DateFilter  — centered modal version
+   ═══════════════════════════════════════════════════════ */
+export default function DateFilter({ label, value, onChange, isOpen, onToggle }) {
   const hasValue = !!(value?.from || value?.to);
+  const reset = () => onChange({ from: undefined, to: undefined });
 
-  const shortDate = (d) =>
-    d.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit" });
-
-  const longDate = (d) =>
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-
-  const btnSummary =
-    hasValue && value.from && value.to
-      ? `${shortDate(value.from)} – ${shortDate(value.to)}`
+  const summary =
+    value?.from && value?.to
+      ? `${fmtLong(value.from)} – ${fmtLong(value.to)}`
       : "Select range";
 
-  const chipSummary =
-    value?.from && value?.to
-      ? `${longDate(value.from)} – ${longDate(value.to)}`
-      : null;
-
-  // Close modal on Escape key
+  /* Close on Escape */
   useEffect(() => {
     if (!isOpen) return;
-    const handler = (e) => { if (e.key === "Escape") onToggle(); };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    const h = (e) => { if (e.key === "Escape") onToggle(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
   }, [isOpen, onToggle]);
+
+  /* Lock body scroll when open */
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
 
   return (
     <>
-      {/* ═══════════════════════════════════
-          Toggle button
-          ═══════════════════════════════════ */}
+      {/* ── Toggle Button ── */}
       <button
-        type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
-        aria-haspopup="dialog"
-        className={[
-          "inline-flex items-center gap-1.5 h-8 px-3 rounded-md border-[1.5px]",
-          "bg-white text-sm font-medium whitespace-nowrap cursor-pointer",
-          "transition-all duration-150",
-          isOpen
-            ? "border-red-600 ring-2 ring-red-100"
-            : "border-gray-300 hover:border-gray-400",
-        ].join(" ")}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          height: 32, padding: "0 12px", borderRadius: 6,
+          border: `1.5px solid ${isOpen ? RED : "#d1d5db"}`,
+          background: "#fff", cursor: "pointer", whiteSpace: "nowrap",
+          fontSize: ".75rem", fontWeight: 600, color: "#374151",
+          boxShadow: isOpen ? `0 0 0 3px ${RED}22` : "none",
+          transition: "all .15s",
+        }}
       >
-        {/* Label */}
-        <span className="text-xs font-semibold text-gray-700">{label}</span>
-
-        <span className="text-gray-300 text-xs">·</span>
-
-        {/* Value or placeholder */}
-        <span className={`text-xs ${hasValue ? "text-red-800 font-bold" : "text-gray-400"}`}>
-          {btnSummary}
+        <span style={{ color: "#374151" }}>{label}</span>
+        <span style={{ color: hasValue ? RED_DARK : "#9ca3af", fontWeight: hasValue ? 700 : 400 }}>
+          {hasValue
+            ? value.from && value.to
+              ? `${fmt(value.from)} – ${fmt(value.to)}`
+              : "Partial…"
+            : "Select range"}
         </span>
-
-        {/* Clear ✕ — only when a range is selected */}
         {hasValue && (
           <span
-            role="button"
-            tabIndex={0}
             onClick={(e) => { e.stopPropagation(); reset(); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); reset(); } }}
-            aria-label={`Clear ${label}`}
-            className="text-gray-400 hover:text-red-600 transition-colors cursor-pointer text-xs leading-none"
-          >
-            ✕
-          </span>
+            title="Clear"
+            style={{ color: "#9ca3af", cursor: "pointer", fontSize: 12, lineHeight: 1 }}
+          >✕</span>
         )}
-
         {/* Chevron */}
         <svg
-          className={[
-            "w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-200",
-            isOpen ? "rotate-180" : "",
-          ].join(" ")}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-          strokeLinecap="round"
+          width={14} height={14} viewBox="0 0 24 24" fill="none"
+          stroke="#9ca3af" strokeWidth={2.5}
+          style={{ transition: "transform .2s", transform: isOpen ? "rotate(180deg)" : "none" }}
         >
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
 
-      {/* ═══════════════════════════════════
-          Modal overlay + centred card
-          ═══════════════════════════════════ */}
+      {/* ── Backdrop + Modal ── */}
       {isOpen && (
         <>
-          {/* Backdrop — click outside to close */}
+          {/* Backdrop */}
           <div
             onClick={onToggle}
-            aria-hidden="true"
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-            style={{ animation: "dfBackdrop .15s ease" }}
+            style={{
+              position: "fixed", inset: 0, zIndex: 9998,
+              background: "rgba(0,0,0,.22)",
+              backdropFilter: "blur(2px)",
+              animation: "calBackdropIn .15s ease",
+            }}
           />
 
-          {/* Centred card */}
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${label} date picker`}
-            className="fixed z-50 bg-white rounded-2xl border border-gray-200 p-5 w-[380px] max-w-[95vw]"
-            style={{
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.16), 0 4px 16px rgba(0,0,0,0.08)",
-              animation: "dfModal .18s cubic-bezier(.34,1.2,.64,1)",
-            }}
-          >
-            {/* Card header */}
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">
-                  Date Range
-                </p>
-                <h3 className="text-sm font-bold text-gray-900">{label}</h3>
-              </div>
+          {/* Modal card — centered */}
+          <div style={{
+            position: "fixed", zIndex: 9999,
+            top: "50%", left: "50%",
+            transform: "translate(-50%,-50%)",
+            width: 380, maxWidth: "95vw",
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 16,
+            padding: 20,
+            boxShadow: "0 24px 64px rgba(0,0,0,.18), 0 4px 16px rgba(0,0,0,.1)",
+            animation: "calModalIn .18s cubic-bezier(.34,1.2,.64,1)",
+            overflow: "hidden",
+          }}>
 
-              <div className="flex items-center gap-2">
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "#9ca3af", marginBottom: 2 }}>
+                  Date Range
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{label}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {hasValue && (
                   <button
-                    type="button"
                     onClick={reset}
-                    className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors bg-transparent border-0 cursor-pointer px-1 py-0.5"
+                    style={{ fontSize: 12, fontWeight: 600, color: RED, border: "none", background: "none", cursor: "pointer" }}
+                    onMouseEnter={(e) => e.target.style.color = RED_DARK}
+                    onMouseLeave={(e) => e.target.style.color = RED}
                   >
                     Reset
                   </button>
                 )}
                 <button
-                  type="button"
                   onClick={onToggle}
-                  aria-label="Close calendar"
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-sm bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-all border-0 cursor-pointer"
-                >
-                  ✕
-                </button>
+                  style={{
+                    width: 28, height: 28, borderRadius: 8, border: "none", cursor: "pointer",
+                    fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
+                    background: "#f1f5f9", color: "#6b7280",
+                  }}
+                >✕</button>
               </div>
             </div>
 
-            {/* Range chip — shown when both dates are picked */}
-            {chipSummary && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 mb-4">
-                <span className="text-sm">📅</span>
-                <span className="text-xs font-semibold text-red-800">{chipSummary}</span>
+            {/* Range chip */}
+            {hasValue && value?.from && value?.to && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "7px 10px", borderRadius: 8, marginBottom: 14,
+                fontSize: 12, fontWeight: 600,
+                background: RED_BG, border: `1px solid ${RED_BORD}`, color: RED_DARK,
+              }}>
+                <span>📅</span>
+                <span>{summary}</span>
               </div>
             )}
 
-            {/* ─── DayPicker ─── */}
-            <DayPicker
-              mode="range"
-              selected={value}
-              onSelect={onChange}
-              captionLayout="buttons"
-              showOutsideDays
-              classNames={dayPickerClassNames}
-              styles={dayPickerStyles}
-            />
+            {/* Calendar */}
+            <CustomCalendar value={value} onChange={onChange} />
 
             {/* Apply button */}
             <button
-              type="button"
               onClick={() => { if (value?.from && value?.to) onToggle(); }}
               disabled={!value?.from || !value?.to}
-              className={[
-                "mt-4 w-full py-2.5 rounded-xl border-0 text-sm font-bold transition-all duration-150",
-                value?.from && value?.to
-                  ? "bg-red-600 hover:bg-red-800 text-white cursor-pointer shadow-md shadow-red-200"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed",
-              ].join(" ")}
+              style={{
+                marginTop: 16, width: "100%", padding: "10px 0",
+                borderRadius: 10, border: "none",
+                cursor: value?.from && value?.to ? "pointer" : "not-allowed",
+                fontSize: 13, fontWeight: 700,
+                background: value?.from && value?.to ? RED : "#e5e7eb",
+                color: value?.from && value?.to ? "#fff" : "#9ca3af",
+                boxShadow: value?.from && value?.to ? `0 3px 12px ${RED}44` : "none",
+                transition: "all .15s",
+                fontFamily: "inherit",
+              }}
+              onMouseEnter={(e) => { if (value?.from && value?.to) e.currentTarget.style.background = RED_DARK; }}
+              onMouseLeave={(e) => { if (value?.from && value?.to) e.currentTarget.style.background = RED; }}
             >
-              {value?.from && value?.to ? "✓  Apply Filter" : "Select start and end date"}
+              {value?.from && value?.to ? "✓ Apply Filter" : "Select start and end date"}
             </button>
           </div>
+
+          {/* Keyframe styles injected once */}
+          <style>{`
+            @keyframes calBackdropIn { from{opacity:0} to{opacity:1} }
+            @keyframes calModalIn {
+              from { opacity:0; transform:translate(-50%,-48%) scale(.95) }
+              to   { opacity:1; transform:translate(-50%,-50%) scale(1) }
+            }
+          `}</style>
         </>
       )}
-
-      {/* Keyframe animations */}
-      <style>{`
-        @keyframes dfModal {
-          from { opacity: 0; transform: translate(-50%, -48%) scale(0.95); }
-          to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        }
-        @keyframes dfBackdrop {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-
-        /* Strip default DayPicker styles that conflict with Tailwind */
-        .rdp { --rdp-accent-color: #991b1b; --rdp-background-color: #fef2f2; margin: 0; }
-        .rdp-nav_button svg { width: 14px; height: 14px; }
-      `}</style>
     </>
   );
 }
 
-export default DateFilter;
+/*
+ ══════════════════════════════════════════════════════════
+  USAGE in your existing Queue component:
+ ══════════════════════════════════════════════════════════
+
+  import DateFilter from "./DateFilter_ClassicRed";
+
+  // State
+  const [submittedRange,  setSubmittedRange]  = useState({ from: undefined, to: undefined });
+  const [approvedRange,   setApprovedRange]   = useState({ from: undefined, to: undefined });
+  const [activeFilter,    setActiveFilter]    = useState(null);   // "sub" | "apr" | null
+
+  const toggle = (name) => setActiveFilter((c) => (c === name ? null : name));
+
+  // JSX (place inside your filter bar)
+  <DateFilter
+    label="Submitted Date"
+    value={submittedRange}
+    onChange={setSubmittedRange}
+    isOpen={activeFilter === "sub"}
+    onToggle={() => toggle("sub")}
+  />
+
+  <DateFilter
+    label="Approved Date"
+    value={approvedRange}
+    onChange={setApprovedRange}
+    isOpen={activeFilter === "apr"}
+    onToggle={() => toggle("apr")}
+  />
+
+ ══════════════════════════════════════════════════════════
+  iRange helper  (paste wherever you filter your rows):
+ ══════════════════════════════════════════════════════════
+
+  function iRange(date, range) {
+    if (!range?.from || !range?.to) return true;
+    if (!date) return false;
+    const ts     = new Date(date).getTime();
+    const fromTs = new Date(range.from).setHours(0, 0, 0, 0);
+    const toTs   = new Date(range.to).setHours(23, 59, 59, 999);
+    return ts >= fromTs && ts <= toTs;
+  }
+*/
