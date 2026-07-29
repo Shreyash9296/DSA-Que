@@ -1,0 +1,97 @@
+@startuml HLD_v3
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam rectangle {
+  RoundCorner 15
+}
+skinparam ArrowColor #333333
+
+actor "Maker / Checker\nUsers" as Users
+actor "Ops / Admin\n(manual trigger)" as Ops
+
+package "UI Layer" #f6e2c4 {
+  [Shared UI\n(Maker & Checker)] as UI #e6c6e0
+}
+
+component "DSP SSO Auth\n(issues token)" as SSO #e8dfa0
+note right of SSO
+  Integrates with AD Groups
+  - AD group membership mapped
+    to Maker / Checker role
+  - Region access derived from
+    AD group entitlements
+  - Token issued with role +
+    region claims
+end note
+
+package "Backend / Application Layer" #f3c98f {
+  [Region Connect API\n(Validate Token, Filter\nRole + Region Access,\nHealthcheck)] as RC #e8dfa0
+  [Maker Service] as MS #e6c6e0
+  [Checker Service] as CS #e6c6e0
+
+  package "Workflow Engine" #f2a8a8 {
+    [Draft] as D #e6c6e0
+    [Pending] as P #e6c6e0
+    [Approved / Rejected] as AR #e6c6e0
+    D --> P
+    P --> AR
+  }
+
+  [Audit Service] as AU #e6c6e0
+}
+
+package "Region Data Store" #ffffff {
+  database "Region DB\n(Oracle)" as RDB #4fb8ae
+  [Hazelcast Cache] as HZ #a78bd6
+  RDB <--> HZ : sync
+}
+
+component "Git Repo\n(region folders +\nmaster plan index)" as GIT #3a7ca8
+component "Rollback Script\nGenerator\n(manual trigger)" as RSG #f2a8a8
+
+package "CI/CD Pipeline" #f3c98f {
+  [Jenkins Upstream\n(DB to DB Migration)] as J1 #e6c6e0
+  [Jenkins Downstream\n(DB to Hazelcast Sync)] as J2 #e6c6e0
+  [Jenkins Rollback\nJob] as J3 #f2a8a8
+}
+
+package "Target Region Infra" #e8dfa0 {
+  database "Target DB" as TDB #4fb8ae
+  [Target Hazelcast] as THZ #a78bd6
+}
+
+' --- Login / Auth flow ---
+Users --> UI
+UI --> SSO : login
+SSO ..> UI : token\n(role + region claims)
+
+' --- Main request flow ---
+UI --> RC : API call + token
+RC --> MS : if Maker
+RC --> CS : if Checker
+MS --> D
+CS --> P
+MS --> RDB
+CS --> RDB
+
+' --- Approval / rejection ---
+AR --> AU : Reject
+AR --> GIT : Approve
+
+' --- Promotion pipeline ---
+GIT --> J1
+GIT --> J2
+J1 --> TDB
+J2 --> THZ
+
+' --- Rollback flow ---
+Ops --> RSG : trigger
+RSG ..> RDB : read live state
+RSG --> GIT : rollback script
+GIT --> J3
+J3 --> TDB : revert
+J3 --> THZ : revert
+
+@enduml
