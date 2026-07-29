@@ -1,0 +1,60 @@
+@startuml
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam rectangle {
+  RoundCorner 15
+}
+
+actor "Maker / Checker\nUsers" as Users
+
+package "Application Layer" #f3c98f {
+  [Region Connect API\n(Access Check + Healthcheck)] as RC #e8dfa0
+  [Maker Service] as MS #e6c6e0
+  [Checker Service] as CS #e6c6e0
+
+  package "Workflow Engine" #f2a8a8 {
+    [Draft] as D #e6c6e0
+    [Pending] as P #e6c6e0
+    [Approved / Rejected] as AR #e6c6e0
+    D --> P
+    P --> AR
+  }
+
+  [Audit Service] as AU #e6c6e0
+}
+
+package "Region Data Store" #ffffff {
+  database "Region DB\n(Oracle)" as RDB #4fb8ae
+  [Hazelcast Cache] as HZ #a78bd6
+  RDB <--> HZ : sync
+}
+
+component "Git Repo\n(region folders +\nmaster plan index)" as GIT #3a7ca8
+
+package "CI/CD Pipeline" #f3c98f {
+  [Jenkins Upstream\n(DB to DB Migration)] as J1 #e6c6e0
+  [Jenkins Downstream\n(DB to Hazelcast Sync)] as J2 #e6c6e0
+}
+
+package "Target Region Infra" #e8dfa0 {
+  database "Target DB" as TDB #4fb8ae
+  [Target Hazelcast] as THZ #a78bd6
+}
+
+Users --> RC
+RC --> MS
+RC --> CS
+MS --> D
+CS --> P
+MS --> RDB
+CS --> RDB
+AR --> AU : Reject
+AR --> GIT : Approve
+GIT --> J1
+GIT --> J2
+J1 --> TDB
+J2 --> THZ
+
+@enduml
