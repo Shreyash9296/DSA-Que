@@ -1,0 +1,10 @@
+Create a component-level HLD diagram using a classic architecture "box-and-line" style (not strict UML notation). Follow these visual rules:
+Components/services: rectangular boxes with a light pastel fill (e.g., light purple/pink #e6c6e0), thin dark border, black text.
+Databases: cylinder shapes, filled teal/green (e.g., #4fb8ae), white text.
+Repositories, file storage, or external systems: a 3D-look box (box3d), filled a solid dark blue (e.g., #3a7ca8), white text.
+In-memory cache (e.g., Hazelcast): rectangular box filled purple (e.g., #a78bd6), white text.
+Logical layers/groupings: wrap related components in a large colored container (orange/tan fill, e.g., #f3c98f or #e8dfa0) with a bold label at the top — use these to group things like "Application Layer," "CI/CD Pipeline," "Target Infra," etc., instead of drawing every internal connection individually.
+External users/actors: a simple oval or stick-figure icon with a plain white fill, placed outside the main containers.
+Connections: keep arrows minimal — only major data/control flow between layers or components, each labeled briefly (e.g., "Approve," "Reject," "sync," "Request/Response"). Avoid wiring every sub-component to every other one; the diagram should be readable at a glance, not dense.
+Layout: left-to-right or top-to-bottom flow that mirrors the real request/response or approval flow direction.
+Group components into 4–6 major containers max. Prioritize clarity and quick scanability over exhaustive detail.
