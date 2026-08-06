@@ -1,0 +1,105 @@
+Visual Design Spec — "Enrichment Rule Propagation" Diagram
+(Extracted from Confluence reference screenshots, for exact visual replication)
+1. Overall Page Structure
+Top banner: full-width horizontal bar, dark teal/slate fill, spans entire page width. Contains the diagram title only ("Enrichment Rule Propagation"), left-aligned, bold white text, ~16-18px.
+Section labels are on the LEFT edge, not as horizontal headers per section. Each major section (lane) has a narrow vertical strip (~40-50px wide) running along the far-left edge of that section's row-band, filled dark teal/slate, with the section name as white text rotated 90° (reading bottom-to-top).
+Sections: "Payment Enrichment UI - UT Environment", "Migrate Feature Branch Scripts to Develop and Main", "Rule Propagation flow GPP SIT/UAT and PROD"
+Sub-labels within a section (e.g. "UT Environment", "SIT/UAT/OAT", "PROD") are plain text, small, teal/blue-gray color, top-left of that sub-block — not boxed or colored as a bar.
+Canvas background: white / very light gray, faint grid visible (like graph paper), very subtle — not a strong visual element.
+Right edge: a single shared Git Repository icon, positioned far right, roughly vertically centered across the whole diagram height. Multiple thin vertical/orthogonal lines converge into it from different sections (acts like a shared "bus").
+Flow direction: strictly left → right within each section; sections stack top → bottom in chronological order (UT → Git merge → SIT/UAT/OAT → PROD).
+Numbered arrows: every arrow has a small black number/label near it (1, 2, 3, 3.1, 6. Fail, 11. Yes, etc.) indicating sequence.
+2. Color Palette
+Element
+Fill
+Border/Stroke
+Text
+Title banner / lane label strips
+Dark teal/slate #2C4A4A–#33555A
+none
+White #FFFFFF, bold
+Process/action boxes (all steps)
+Light gray #D3D3D3 (uniform — not color-coded by type)
+Gray #888888
+Black
+Decision diamonds
+Dark teal/slate #2C4A4A (same as banner)
+Darker teal #1A3333
+White, bold
+Actor icons (people)
+Teal-to-sage gradient, #5F9EA0 → #8FBC8F
+none/soft
+Black label below
+Database cylinders
+Green gradient, #A8D5A8 → #6B9B6B
+Darker green #4E7A4E
+Black
+Hazelcast cache icon
+Blue, #4A90D9/#5B9BD5 (two overlapping cylinders) + cyan lightning bolt accent #7FDBFF
+Darker blue
+Black
+Git Repository icon
+Black/charcoal #1A1A1A diamond, white git-branch glyph
+none
+White
+Automation Pipeline icon
+Circular, red/maroon outline #B03A2E, unfilled or very light fill, gear/refresh symbol
+Red-maroon
+Black label below
+Sticky notes
+Cream/yellow #FFF2CC/#FDF6D8, folded bottom-right corner
+Tan #D6B656
+Black, smaller font, left-aligned
+Arrows/connectors
+Black #000000, thin, solid, small arrowhead
+—
+Black, small font (9-10px)
+3. Shape Library — what each component type uses
+Component
+Shape
+Notes
+Human actor (Maker, Checker, CTB User, QA Analyst, Test Analyst)
+Flat filled person silhouette (head circle + shoulders/body, NOT stick-figure UML actor)
+Gradient teal-green fill; label directly below in plain black text
+Process/action step
+Rectangle, slightly rounded corners, subtle drop-shadow (offset bottom-right) giving light 3D depth
+All the same gray — color is not used to differentiate step types
+Decision point
+Rhombus/diamond
+Always dark teal fill w/ white text, larger than process boxes
+Database
+3D cylinder (flat ellipse top, curved sides, flat bottom)
+Green gradient; label inside or directly below
+In-memory cache (Hazelcast)
+Two overlapping/stacked 3D cylinders (slightly offset) + a small lightning-bolt glyph in the corner
+Blue, distinctly different from green DB cylinders — this dual-cylinder + bolt combo is the specific "cache" visual language
+Git branch / feature branch / develop branch
+Small icon showing a mini commit graph — a few small circles connected by short lines (like a simplified git graph), inside a small gray box
+Used for "Recent Feature Branch" / "Develop Branch" steps
+Git repository (main, shared)
+Black diamond/rotated-square with a white 3-circle git-fork glyph inside
+Single instance, far right, receiving connections from all sections
+File storage
+3D open box / cube icon
+Blue, used for things like "Reference Data File Storage"
+Automation/scheduled trigger
+Circular icon with a red-outline gear or circular-refresh arrows symbol
+Represents an automated (non-human) trigger, e.g. Jenkins/pipeline trigger
+Annotation / explanatory note
+Sticky-note shape with folded corner (classic Post-it look)
+Cream/yellow, positioned to the right of the flow it explains
+4. Typography
+Sans-serif throughout (looks like Arial/Helvetica/Calibri).
+Titles/banners: bold, white, ~16-18px.
+Box labels: regular weight, black, ~11-12px, centered.
+Arrow/step numbers: smaller, ~9-10px, positioned just above or beside the line.
+Sticky note text: ~9-10px, left-aligned (not centered), slightly condensed.
+5. Layout & Spacing Conventions
+Consistent vertical alignment: actor icons sit in a fixed left-hand column across all rows within a section (e.g., all "Maker"/"Checker" icons align to the same x-position).
+Generous horizontal spacing between boxes (~80-120px gaps) so arrows never need to double back through other shapes.
+Decision diamonds are noticeably larger than process rectangles to draw the eye.
+Loop-back arrows (e.g., "Fail", "No") route above or below the main flow line, never crossing directly through other boxes.
+Each section is a full-width horizontal band; the Git Repository connector lines run down the far-right margin only, never crossing into the middle of the canvas.
+No dashed lines anywhere — every connector in the original is solid.
+6. Suggested prompt block to hand another AI/tool
+Recreate this diagram using: a dark teal (#2C4A4A) title banner across the top; vertical rotated-text section labels in the same dark teal running down the left margin (not horizontal headers per section); light gray rounded rectangles with subtle drop-shadow for all process steps; dark teal diamonds with white bold text for decisions; green gradient 3D cylinders for databases; blue double-cylinder-plus-lightning-bolt icons for Hazelcast/cache; a black diamond with a white git-fork glyph for the shared Git Repository node on the far right; flat gradient teal-green person-silhouette icons (not UML stick figures) for human actors; cream/yellow folded-corner sticky notes for annotations; solid black arrows with small numbered labels; generous spacing so no line crosses through another shape.
