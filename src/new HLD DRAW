@@ -1,0 +1,324 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Rule Propagation Workflow" id="rulepropagation">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="2100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ============ GIT REPOSITORY (external, shared) ============ -->
+        <mxCell id="git_repo" value="&#x2442;&#10;Git Repository" style="rhombus;whiteSpace=wrap;html=1;fillColor=#1a1a1a;strokeColor=#000000;fontColor=#ffffff;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1780" y="820" width="110" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ============ LANE A: AUTH & MULTI-REGION ACCESS (NEW) ============ -->
+        <mxCell id="laneA" value="Authentication &amp; Multi-Region Access (NEW)" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#1f4e4e;swimlaneFillColor=#ffffff;strokeColor=#173838;fontColor=#ffffff;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1720" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="a_user" value="Maker / Checker&#10;User" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="laneA">
+          <mxGeometry x="30" y="60" width="50" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="a_sso" value="DSP SSO Login&#10;(AD Credentials)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneA">
+          <mxGeometry x="150" y="70" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="a_ad" value="AD Groups&#10;(Role + Region&#10;Entitlements)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="laneA">
+          <mxGeometry x="370" y="65" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="a_token" value="Issue Token&#10;(Role + Region Claims)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneA">
+          <mxGeometry x="590" y="70" width="190" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="a_rbac" value="Role-Based&#10;Access Filter&#10;(Maker / Checker)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="laneA">
+          <mxGeometry x="820" y="55" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="a_region" value="Region Selector&#10;(HZ / ME / ...)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneA">
+          <mxGeometry x="1040" y="70" width="190" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="conn_A_out" value="A" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="laneA">
+          <mxGeometry x="1105" y="150" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="econnA1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneA" source="a_region" target="conn_A_out">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a_note" value="Region Connect API (Lane C) validates this token on every subsequent call and re-checks role + region entitlement, healthcheck of the target region DB/cache." style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;fontSize=10;align=left;verticalAlign=top;spacing=6;" vertex="1" parent="laneA">
+          <mxGeometry x="1300" y="50" width="380" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ea1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneA" source="a_user" target="a_sso">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ea2" value="validate" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneA" source="a_sso" target="a_ad">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ea3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneA" source="a_ad" target="a_token">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ea4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneA" source="a_token" target="a_rbac">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ea5" value="role granted" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneA" source="a_rbac" target="a_region">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============ LANE B: PAYMENT ENRICHMENT UI - UT ENVIRONMENT ============ -->
+        <mxCell id="laneB" value="Payment Enrichment UI - UT Environment" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#1f4e4e;swimlaneFillColor=#ffffff;strokeColor=#173838;fontColor=#ffffff;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="1720" height="520" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b_maker1" value="Maker" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="laneB">
+          <mxGeometry x="20" y="45" width="45" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="conn_A_in" value="A" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="laneB">
+          <mxGeometry x="155" y="5" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="b_ui" value="Payment Enrichment UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneB">
+          <mxGeometry x="100" y="50" width="170" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="econnA2" value="token" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" parent="laneB" source="conn_A_in" target="b_ui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b_create" value="Create/Update/Attach&#10;Rule/Entity in DB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneB">
+          <mxGeometry x="320" y="50" width="190" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="b_pessdb" value="PesS DB" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;boundedLbl=1;" vertex="1" parent="laneB">
+          <mxGeometry x="600" y="35" width="110" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="b_sync1" value="Sync Database with&#10;Hazelcast cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneB">
+          <mxGeometry x="600" y="140" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="b_hzsim" value="&#9889; Hazelcast Cache SIM" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneB">
+          <mxGeometry x="790" y="128" width="110" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b_maker2" value="Maker" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="laneB">
+          <mxGeometry x="20" y="230" width="45" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="b_unittest" value="Unit Test newly&#10;created Rule/Entity" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="laneB">
+          <mxGeometry x="100" y="210" width="180" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="b_gppstub" value="GPP Stub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneB">
+          <mxGeometry x="600" y="235" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="b_pess2" value="PesS" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="laneB">
+          <mxGeometry x="790" y="225" width="110" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b_publishq" value="Publish to checker Queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneB">
+          <mxGeometry x="320" y="335" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="b_checker" value="Checker" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="laneB">
+          <mxGeometry x="20" y="415" width="45" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="b_review" value="Review/Update&#10;Queue Items" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneB">
+          <mxGeometry x="100" y="410" width="180" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="b_approved" value="Approved?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="laneB">
+          <mxGeometry x="340" y="400" width="150" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="b_markapprove" value="Mark Approve on UI and&#10;Publish Rule Package to&#10;repository (Feature branch)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneB">
+          <mxGeometry x="560" y="395" width="230" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="eb1" value="1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneB" source="b_maker1" target="b_ui"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="conn_B1_out" value="B1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=10;" vertex="1" parent="laneB">
+          <mxGeometry x="395" y="115" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="econnB1" value="validate" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" parent="laneB" source="b_create" target="conn_B1_out"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="conn_B2_out" value="B2" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=10;" vertex="1" parent="laneB">
+          <mxGeometry x="130" y="475" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="econnB2" value="validate" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" parent="laneB" source="b_review" target="conn_B2_out"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="conn_B3_in" value="B3" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=10;" vertex="1" parent="laneB">
+          <mxGeometry x="600" y="0" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="econnB3" value="live" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" parent="laneB" source="conn_B3_in" target="b_pessdb"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb2" value="2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneB" source="b_ui" target="b_create"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb3" value="3. Publish to main tables" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneB" source="b_create" target="b_pessdb"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb3a" value="3.1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneB" source="b_pessdb" target="b_sync1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb3b" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneB" source="b_sync1" target="b_hzsim"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb4" value="4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneB" source="b_maker2" target="b_unittest"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb5" value="5. Unit Test (Send to GPP Stub)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneB" source="b_unittest" target="b_gppstub"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb5a" value="16" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneB" source="b_gppstub" target="b_pess2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb6" value="6. Fail" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.25;entryX=0.5;entryY=1;" edge="1" parent="laneB" source="b_unittest" target="b_create"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb7" value="7. Success" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneB" source="b_unittest" target="b_publishq"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb8" value="8" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneB" source="b_publishq" target="b_review"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb9" value="9" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneB" source="b_checker" target="b_review"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb10" value="10" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneB" source="b_review" target="b_approved"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb11" value="11. Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneB" source="b_approved" target="b_markapprove"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb12" value="12. No (Rejected by checker)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="laneB" source="b_approved" target="b_ui"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eb13" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="b_markapprove" target="git_repo"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ============ LANE C: BACKEND SERVICES LAYER (NEW - was missing) ============ -->
+        <mxCell id="laneC" value="Backend Services Layer (NEW)" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#1f4e4e;swimlaneFillColor=#ffffff;strokeColor=#173838;fontColor=#ffffff;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="780" width="1720" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="conn_B1_in" value="B1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=10;" vertex="1" parent="laneC">
+          <mxGeometry x="60" y="5" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="conn_B2_in" value="B2" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=10;" vertex="1" parent="laneC">
+          <mxGeometry x="150" y="5" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c_rcapi" value="Region Connect API&#10;(Validate Token, Role +&#10;Region Access, Healthcheck)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneC">
+          <mxGeometry x="40" y="55" width="210" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="econnB1b" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneC" source="conn_B1_in" target="c_rcapi"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="econnB2b" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneC" source="conn_B2_in" target="c_rcapi"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c_ruleservice" value="Rule Service&#10;(Maker/Checker Logic)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneC">
+          <mxGeometry x="310" y="60" width="170" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="c_draft" value="Draft" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneC">
+          <mxGeometry x="530" y="65" width="100" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="c_pending" value="Pending" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneC">
+          <mxGeometry x="670" y="65" width="100" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="c_approved2" value="Approved /&#10;Rejected" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneC">
+          <mxGeometry x="810" y="60" width="110" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="c_audit" value="Audit Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneC">
+          <mxGeometry x="970" y="60" width="150" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="ec1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneC" source="c_rcapi" target="c_ruleservice"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ec2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneC" source="c_ruleservice" target="c_draft"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ec3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneC" source="c_draft" target="c_pending"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ec4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneC" source="c_pending" target="c_approved2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ec5" value="Reject" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneC" source="c_approved2" target="c_audit"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="conn_B3_out" value="B3" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=10;" vertex="1" parent="laneC">
+          <mxGeometry x="840" y="0" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="econnB3b" value="Approve" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" parent="laneC" source="c_approved2" target="conn_B3_out"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ============ LANE D: MIGRATE FEATURE BRANCH SCRIPTS ============ -->
+        <mxCell id="laneD" value="Migrate Feature Branch Scripts to Develop and Main" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#1f4e4e;swimlaneFillColor=#ffffff;strokeColor=#173838;fontColor=#ffffff;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1000" width="1720" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="d_ctb1" value="CTB User" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="laneD">
+          <mxGeometry x="30" y="55" width="45" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="d_recentbranch" value="Recent Feature&#10;Branch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneD">
+          <mxGeometry x="160" y="65" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="d_developbranch" value="Develop&#10;Branch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneD">
+          <mxGeometry x="330" y="65" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="d_ctb2" value="CTB User -&#10;Review and Approve" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="laneD">
+          <mxGeometry x="520" y="55" width="45" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="d_note" value="The GCM user informs the CTB SME about the new rule and corresponding feature branch, which must be merged into both develop and master. CTB user initiates a pull request and approves the merge." style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;fontSize=10;align=left;verticalAlign=top;spacing=6;" vertex="1" parent="laneD">
+          <mxGeometry x="700" y="40" width="360" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ed1" value="Pull Request" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneD" source="d_ctb1" target="d_recentbranch"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ed2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneD" source="d_recentbranch" target="d_developbranch"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ed3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneD" source="d_developbranch" target="d_ctb2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ed4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="d_developbranch" target="git_repo"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ============ LANE E: RULE PROPAGATION FLOW - SIT/UAT/OAT ============ -->
+        <mxCell id="laneE" value="Rule Propagation Flow - GPP SIT/UAT/OAT" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#1f4e4e;swimlaneFillColor=#ffffff;strokeColor=#173838;fontColor=#ffffff;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1220" width="1720" height="460" as="geometry" />
+        </mxCell>
+        <mxCell id="e_autopipe" value="&#9881;&#10;Automation&#10;Pipeline" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="laneE">
+          <mxGeometry x="20" y="45" width="100" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="e_trigger" value="Trigger Rule propagation&#10;tool for SIT/UAT/OAT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneE">
+          <mxGeometry x="160" y="55" width="210" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e_execute" value="Execute the rule package in&#10;lower environment within&#10;DB and HC Cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneE">
+          <mxGeometry x="420" y="55" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e_gppdb" value="GPP(PesS) DB" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="laneE">
+          <mxGeometry x="700" y="45" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sync2" value="Sync Database with&#10;Hazelcast cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneE">
+          <mxGeometry x="460" y="145" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e_hzcache" value="&#9889; Hazelcast Cache" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneE">
+          <mxGeometry x="700" y="140" width="120" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e_note1" value="Jenkins pipeline auto-triggers via GitHub webhook to deploy to SIT. After QA approval, changes are deployed to UAT and OAT by manually initiating the pipeline." style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;fontSize=10;align=left;verticalAlign=top;spacing=6;" vertex="1" parent="laneE">
+          <mxGeometry x="880" y="40" width="300" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_qa" value="QA Analyst" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="laneE">
+          <mxGeometry x="20" y="245" width="45" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="e_regtest" value="Execute Regression&#10;and Integration Test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneE">
+          <mxGeometry x="140" y="250" width="220" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e_gppinstance" value="GPP Instance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneE">
+          <mxGeometry x="420" y="255" width="150" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="e_hzcache2" value="&#9889; Hazelcast Cache" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneE">
+          <mxGeometry x="630" y="245" width="120" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_qacert" value="QA Certified?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="laneE">
+          <mxGeometry x="140" y="345" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="e_defect" value="Defect Lifecycle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneE">
+          <mxGeometry x="20" y="355" width="100" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tag" value="Trigger a script to&#10;create a TAG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneE">
+          <mxGeometry x="370" y="350" width="190" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e_note2" value="Creates a Version tag in the repo marking the finalized script as ready for UAT/OAT and production." style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;fontSize=10;align=left;verticalAlign=top;spacing=6;" vertex="1" parent="laneE">
+          <mxGeometry x="600" y="355" width="280" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="e_testanalyst" value="Test Analyst" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="laneE">
+          <mxGeometry x="380" y="425" width="45" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ee1" value="1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_autopipe" target="e_trigger"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee2" value="3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_trigger" target="e_execute"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee3" value="4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_execute" target="e_gppdb"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee4" value="4.1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_gppdb" target="e_sync2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee5" value="4.2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_sync2" target="e_hzcache"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee6" value="5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_qa" target="e_regtest"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee7" value="6" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_regtest" target="e_gppinstance"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee8" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_gppinstance" target="e_hzcache2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee9" value="8" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_regtest" target="e_qacert"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee10" value="9. No (fix issues)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneE" source="e_qacert" target="e_defect"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee11" value="10. Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="laneE" source="e_qacert" target="e_tag"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee12" value="11" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneE" source="e_testanalyst" target="e_tag"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee13" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="e_autopipe" target="git_repo"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ee14" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="e_tag" target="git_repo"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ============ LANE F: PROD ============ -->
+        <mxCell id="laneF" value="PROD" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#1f4e4e;swimlaneFillColor=#ffffff;strokeColor=#173838;fontColor=#ffffff;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1700" width="1720" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="f_ctb" value="CTB User" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="laneF">
+          <mxGeometry x="20" y="45" width="45" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="f_cbwindow" value="CB Time window?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="laneF">
+          <mxGeometry x="110" y="30" width="150" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="f_trigger2" value="Trigger Rule propagation tool&#10;applying latest git tag&#10;parameter Create/Rollback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneF">
+          <mxGeometry x="310" y="45" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f_execute2" value="Execute the rule package in&#10;prod environment DB and&#10;HC cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneF">
+          <mxGeometry x="590" y="45" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f_proddb" value="GPP(PesS) PROD DB" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="laneF">
+          <mxGeometry x="860" y="35" width="130" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="f_sync3" value="Sync Database with&#10;Hazelcast cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneF">
+          <mxGeometry x="590" y="145" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f_hzcache3" value="&#9889; Hazelcast Cache" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="laneF">
+          <mxGeometry x="860" y="140" width="130" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="f_note3" value="Each new script must have a corresponding rollback script. The rollback pipeline is configured to execute the appropriate rollback SQL when provided with the relevant SQL file name." style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;fontSize=10;align=left;verticalAlign=top;spacing=6;" vertex="1" parent="laneF">
+          <mxGeometry x="1050" y="35" width="330" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ef0" value="3. Pull tested and certified version rule package" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" parent="1" source="e_tag" target="f_ctb"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ef1" value="1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneF" source="f_ctb" target="f_cbwindow"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ef2" value="4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneF" source="f_cbwindow" target="f_trigger2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ef3" value="5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneF" source="f_trigger2" target="f_execute2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ef4" value="6" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneF" source="f_execute2" target="f_proddb"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ef5" value="7" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneF" source="f_proddb" target="f_sync3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ef6" value="7.1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="laneF" source="f_sync3" target="f_hzcache3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ef7" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="f_trigger2" target="git_repo"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
