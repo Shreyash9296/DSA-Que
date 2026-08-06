@@ -1,0 +1,48 @@
+Color Correction — "Enrichment Rule Propagation" Diagram (v2)
+Your regenerated version used bright/pure green for the headers, actors, and decision
+diamonds. The original uses a muted dark teal-slate for those — green is reserved
+ONLY for database cylinders. Here's the corrected, precise palette.
+The core mistake to fix
+❌ Headers/actors/diamonds should NOT be grass-green (#1a5c1a / #2e8b2e style).
+✅ They should be a muted dark teal-slate — closer to blue-gray-green than green.
+✅ Green is used ONLY on database cylinders (PesS DB, GPP DB). Nowhere else.
+Corrected hex values
+Element
+Correct color
+NOT this
+Title banner + vertical lane-label strips
+#26494A (dark teal-slate)
+#1a5c1a bright green
+Decision diamonds
+#2E5555 (same family as header, slightly lighter), white bold text
+pure black or green
+Actor/person icons
+Two-tone gradient: #5B9AA0 (teal, top/head) → #8FBC8F (sage green, bottom/body)
+solid flat green
+Process/action boxes
+#D6D6D6 light gray, #999999 border, subtle drop-shadow
+(this one was already close/correct)
+Database cylinders (PesS DB, GPP DB, GPP PROD DB)
+Green gradient #8FBF8F → #5A8F5A, border #3F6B3F — this is the only place green belongs
+—
+Hazelcast Cache (2 overlapping cylinders + lightning bolt)
+Blue gradient #2F6FB5 → #4A90D9, cyan lightning accent #7FDBFF
+(already close/correct)
+Git Repository icon
+#1A1A1A black diamond, white git-fork glyph
+(already correct)
+Sticky notes
+#FFF6D9 cream, #D9C36A tan border, folded corner
+(already close/correct)
+Automation Pipeline icon
+Circular, thin maroon/red outline #A83232, unfilled or near-white center, gear/circular-arrow glyph inside
+(check this isn't filled solid)
+Rule of thumb to give the tool
+There are only 4 core colors in this diagram, used in strict roles — nothing else should be colored:
+Dark teal-slate — headers, lane labels, actors (blended w/ sage), decision diamonds
+Gray — every process/action box, no exceptions
+Green — database cylinders only
+Blue — Hazelcast cache only
+Plus black (Git icon only) and cream/yellow (sticky notes only).
+One-line correction prompt to send back
+"Change the header bars, vertical lane labels, actor icons, and decision diamonds from green to a muted dark teal-slate (#26494A family) — NOT grass green. Keep green exclusively on the database cylinders (PesS DB / GPP DB), and keep the Hazelcast cache blue. The diamonds should be the same dark teal-slate as the headers with white text, not black or bright green."
