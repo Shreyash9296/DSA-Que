@@ -1,0 +1,84 @@
+CONTEXT:
+Same Next.js maker-checker frontend (Value/Rule/Group/Entity/Return Code List+Create 
+pairs, plus an Approval Queue page). Backend returns a `permissions` object on every 
+rule record (role/canEdit/canSubmit/canApprove/canReject — see the backend prompt for 
+the exact contract).
+
+Goal for this pass: replace the per-page, client-side flag logic with ONE shared, 
+SSR-driven module that every List/Queue page routes through when navigating to a 
+Create/Edit page, and that every Create/Edit page's data-loading calls to get its 
+record + permissions — instead of each page hardcoding its own version of "is this a 
+new record / can this user edit / can this user approve or reject."
+
+STEP 1 — AUDIT (do this first, don't modify anything until it's documented):
+1. Confirm whether the app uses Pages Router (pages/, getServerSideProps) or App Router 
+   (app/, Server Components) — the shared module's shape depends on which.
+2. Find out EXACTLY what happens today between "user clicks an action on a List/Queue 
+   page" and "Create/Edit page renders with the right buttons." Specifically: when the 
+   List/Queue page's GET API returns makerId and checker-eligibility info, where does 
+   the frontend currently store it before/during navigation — localStorage, 
+   sessionStorage, a Context/Redux/Zustand store, router query params, something else? 
+   Document this per page — it likely differs page to page.
+3. Note every place operationStatus/makerId/checkerId is currently turned into a button 
+   flag, and under what variable/flag names, per page.
+The plan below assumes that storage-based propagation exists and needs replacing — 
+confirm that's actually what's happening before removing anything.
+
+STEP 2 — SHARED MODULE (the generic class):
+Build one server-side module — a class or plain functions, match whatever pattern the 
+codebase already uses for services — that owns ALL record-loading + permission 
+resolution for this workflow:
+
+  WorkflowRecordLoader.loadForPage(entityType, recordId | null, requestContext)
+    → { record: T | null, permissions: RulePermissions, isNew: boolean }
+
+Behavior:
+- recordId present → server-side fetch the record (with permissions) using the 
+  request's auth context. If permissions.role is NONE, redirect server-side (Next.js 
+  redirect — to the list page or a forbidden page, whichever the audit shows is the 
+  existing pattern for unauthorized access) instead of rendering.
+- recordId absent (user clicked "Create New" from a List page) → skip the fetch, return 
+  a fixed default: { role: MAKER, canEdit: true, canSubmit: false, canApprove: false, 
+  canReject: false, isNew: true } — confirm this against current create-page behavior, 
+  it's inferred from the draft/submit split, not stated.
+- If the backend response has no `permissions` field (rollout incomplete), fall back to 
+  local reconstruction from operationStatus/makerId/checkerId here, in this one module — 
+  not per-page.
+
+Every List page's action button and every Approval Queue row navigates by recordId only 
+— through normal Next.js routing (Link/router.push) — and the destination page's SSR 
+data-loading (getServerSideProps or the Server Component itself, per Step 1's finding) 
+calls WorkflowRecordLoader.loadForPage and passes the result down as props. No 
+maker/checker info is read from or written to browser storage anywhere in this flow.
+
+STEP 3 — PAGE INTEGRATION:
+Each Create/Edit page receives { record, permissions, isNew } as props from SSR and maps 
+permissions.canX onto its EXISTING button JSX — don't rewrite markup. If a page's 
+component tree is deep enough that prop-drilling is awkward, a thin Context populated 
+once from these SSR props is fine — don't introduce one unless the audit shows it's 
+actually needed.
+
+MIGRATION STRATEGY:
+1. Build WorkflowRecordLoader with unit tests: existing record for MAKER, for CHECKER, 
+   for NONE (→ redirect), new record, and the permissions-missing fallback.
+2. Pilot on one page. Keep the current storage-based read running in parallel 
+   temporarily (console.warn on mismatch vs the loader's output) before deleting it.
+3. Once mismatches are gone on the pilot, remove its old storage-read/flag logic, then 
+   repeat for the remaining pages and the Approval Queue's navigation.
+4. No changes to button/view JSX, styling, or the routes themselves — only how each 
+   page gets its data and where the permission decision comes from.
+
+DELIVERABLES:
+1. WorkflowRecordLoader (or equivalent) + unit tests
+2. Updated SSR data-loading for one pilot page, wired to the loader
+3. constants/workflowStatus.ts (status display labels only, unchanged from before)
+4. Written summary of Step 1's audit: router type, current storage mechanism per page, 
+   current flag names per page — needed before touching the remaining 4 pages
+
+CONSTRAINTS:
+- Do not change what buttons appear for any given state
+- Do not rename existing components, routes, or props
+- Do not remove the current storage-based flow until the audit confirms exactly what it 
+  does and the new loader is verified to produce equivalent results
+- Treat the `permissions` contract and the "new record" defaults above as targets to 
+  confirm, not guaranteed final
