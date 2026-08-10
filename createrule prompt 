@@ -1,0 +1,99 @@
+CONTEXT:
+The Create Rule page (Next.js + Tailwind) has grown past 3,000 lines in one component. 
+It combines: General Details fields (Entity/Field Group/Name/Description/Return Code, 
+API-populated), a recursive nested AND/OR condition builder (groups can contain 
+conditions or further nested groups, arbitrary depth), a flat Actions section, a live 
+JSON preview panel, full recursive field-level validation, custom searchable-dropdown 
+components used for every selection control, and maker-checker workflow buttons gating 
+what's editable/submittable/approvable.
+
+GOAL: split into a well-organized set of smaller files with ZERO observable behavior 
+change — same validation messages, same generated JSON shape, same dropdown search/
+positioning behavior, same responsive breakpoints, same API calls, same maker-checker 
+button gating. This is a relocation of code, not a rewrite.
+
+STEP 1 — AUDIT + SAFETY NET (do this first, don't move any code yet):
+1. Read the current file fully. Map: state variables and their shapes, which functions 
+   validate, which build the preview JSON, which fetch data, which render which visual 
+   section, where the searchable-dropdown logic lives, how maker-checker permission 
+   flags gate the button bar.
+2. Confirm the current state-management approach (multiple useState, one useReducer, 
+   Formik/React Hook Form, something else) — the plan below assumes it can be relocated 
+   as-is, not redesigned.
+3. Before moving anything, write characterization tests (Playwright, reusing the setup 
+   from the testing work already planned) against the CURRENT page:
+   - Submit with everything empty → every "is required" message from the screenshots 
+     appears in the right place
+   - A simple single-condition rule produces the exact JSON shape currently shown in 
+     the preview panel (down to field names like isActionGroup, logical_operator, not)
+   - Adding a nested OR group renders correctly and nests correctly in the output JSON
+   - The searchable Select Field dropdown filters correctly on typed input
+   These tests must pass before AND after every extraction step below — they're the 
+   actual proof that nothing broke, not a visual check.
+
+STEP 2 — TARGET STRUCTURE (extract by responsibility):
+  /features/rule-builder/
+    CreateRulePage.tsx            — thin orchestrator only: holds/provides state, loads 
+                                     existing record on edit (via the WorkflowRecordLoader 
+                                     pattern already planned), composes sections below
+    components/
+      GeneralDetailsSection.tsx
+      InputConditionsSection.tsx  — renders the top-level ConditionGroup
+      ConditionGroup.tsx          — RECURSIVE: a group renders a list of rows, each 
+                                     either a leaf ConditionRow or another ConditionGroup
+      ConditionRow.tsx
+      ActionsSection.tsx
+      ActionRow.tsx
+      RulePreviewPanel.tsx
+      FormActionBar.tsx           — Close/Reset/Create/Submit/Approve/Reject, reads 
+                                     permissions from the workflow loader already 
+                                     designed, doesn't recompute its own gating logic
+    hooks/
+      useEntities.ts / useFieldGroups.ts / useReturnCodes.ts / 
+      useFieldsForEntity.ts / useOperators.ts   — one hook per data source, isolates 
+                                     fetch + loading + error state
+      useRuleForm.ts               — wraps whatever state mechanism Step 1 finds, 
+                                     exposed via context so sections don't need a huge 
+                                     prop list
+    lib/
+      validateRule.ts              — pure function, recursively walks the tree, returns 
+                                     an errors map; no JSX, no React, unit-testable
+      buildRulePayload.ts          — pure function, form state → the exact JSON shape 
+                                     shown in the preview
+  /components/shared/
+    SearchableSelect.tsx           — ONE generic, prop-driven component (options, 
+                                     onSelect, placeholder) used for every dropdown 
+                                     currently duplicated across Entity/Field Group/
+                                     Return Code/Field/Operations/Operator
+
+STEP 3 — MIGRATION ORDER (risk-ordered, lowest first):
+1. SearchableSelect first — most self-contained, proves the extraction pattern is safe.
+2. ActionsSection next — flat, non-recursive, simpler than the condition tree.
+3. GeneralDetailsSection.
+4. validateRule + buildRulePayload — lift the existing logic verbatim, don't reimplement 
+   from a fresh read of what it "should" do; a rewrite risks silently changing a 
+   validation message or a JSON field name.
+5. ConditionGroup LAST, once the pattern is proven — it's recursive, so a subtle bug 
+   (lost key prop, off-by-one in depth) is much harder to spot visually than in the 
+   flatter sections. Lean hardest on the nested-OR-group characterization test here.
+
+For each step: move the code as-is, wire it back in, run the full characterization 
+suite, confirm parity, commit — then move to the next. Don't batch multiple extractions 
+into one commit; if something regresses, you want to know which extraction did it.
+
+DELIVERABLES:
+1. Characterization test suite, committed before any file is touched
+2. Target folder structure above
+3. One commit per extraction, in the order in Step 3, each passing the full suite
+4. Final CreateRulePage doing orchestration only — no file should be doing more than 
+   one of: fetching, validating, building payload, or rendering a section
+5. Written note on anything found during the audit that looks ambiguous or possibly 
+   already a bug (e.g. the id-generation scheme for condition nodes) — flag it, don't 
+   silently "fix" it mid-refactor
+
+CONSTRAINTS:
+- Zero visible behavior change, full stop
+- No new dependencies — no new form library, no new state library — as part of this 
+  pass, even if one would be cleaner; that's a separate decision with its own risk
+- Move code, never rewrite it, during extraction
+- ConditionGroup is the last extraction, not the first
