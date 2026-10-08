@@ -1,0 +1,52 @@
+ROLE
+You are a senior Java/Spring Boot architect and security reviewer. I'm adding Staff DSP LDAP authentication/authorization to an existing multi-region app. Work in phases. Do NOT change code until I approve Phase 2.
+
+CURRENT IMPLEMENTATION (verify against the codebase, don't trust blindly)
+- Next.js UI + Spring Boot backend. One backend instance serves 5 regions: APAC, NA, ME, CHINA, EU. Each region has its own Oracle DB + Hazelcast cluster, configured via application properties. At startup, data is loaded DB -> Hazelcast.
+- Every request carries an x-region header. A region routing filter sets RegionContextHolder, and the request goes to that region's DB + Hazelcast (region DB config / region Hazelcast config classes). Each region has its own thread pool. ThreadContext puts user id + region in every log line (log4j).
+- Current auth is hardcoded. The "region connect" API takes a user id and checks a hardcoded user->regions map plus a global-access property. It returns allowed regions, id and role (MAKER/CHECKER), and the id is stored in SecurityContext. The UI profile menu switches region by re-calling region connect (DB status check).
+- Many users with different regions/roles are active at the same time.
+
+TARGET
+- UI calls the Staff DSP LDAP API and gets role, region access and PSID. After that, an AMToken cookie arrives on every request.
+- On EVERY request the backend must authenticate (valid, unexpired, untampered) and authorize (user may access x-region, role may do the operation), then run CRUD only against that region's DB/HZ.
+- Zero cross-user / cross-region leakage. Fail closed. Keep the current log format and add what's missing.
+
+UNKNOWN
+- AMToken structure (JWT or opaque OpenAM session id?). The old commented code only took username as PSID from the payload. Don't assume. Make token parsing/validation pluggable and claim names configurable.
+
+CONSTRAINTS
+- Preserve existing classes and structure. Extend, don't rewrite. Minimal diffs.
+- Keep the hardcoded mode behind a flag for local dev only. It must be impossible to enable in prod.
+- Check Java / Spring Boot / Spring Security / Hazelcast / Log4j versions in the build file and suggest only compatible libraries.
+
+MY IDEAS (challenge them)
+1. Filter order: requestId/ThreadContext filter -> AMToken auth filter -> region authorization filter (x-region must be in the user's allowed regions) -> set RegionContext -> controller. Clear everything in finally.
+2. STATELESS security. No user/region state in statics, singletons or shared contexts.
+3. AuthTokenResolver interface with two implementations: JWT (Nimbus JOSE or spring-security-oauth2-resource-server; check signature, exp, iss, aud) and opaque (validate against the AM/LDAP endpoint). The result is an immutable AuthenticatedUser(psid, role, allowedRegions, globalAccess), which becomes the Spring Authentication.
+4. Short-TTL Caffeine cache keyed by token hash (TTL <= token expiry), with timeouts and circuit breaker on the LDAP call. Fail closed.
+5. @PreAuthorize + custom RegionAccessEvaluator. Maker-checker segregation (checker cannot approve own maker record). Role comes from the token, never from the client.
+6. Propagate SecurityContext + RegionContext + ThreadContext into per-region pools via TaskDecorator / DelegatingSecurityContextExecutor, and always clear after. Bulkhead per region.
+7. Region connect keeps only the DB/HZ health check. The access decision comes from token-derived data.
+8. Logging: ThreadContext keys psid, region, requestId. Return X-Request-Id. Never log cookie/token. Separate audit log for auth success/failure/denied.
+9. Consistent JSON errors: 401 vs 403 vs 503 via AuthenticationEntryPoint / AccessDeniedHandler.
+
+TASKS
+Phase 0 - Understand: Scan the code and report back: request flow, where region/user context is set and cleared, every ThreadLocal/static/mutable singleton, how the routing datasource and Hazelcast client are chosen, thread pool setup, security config, log config. Flag anything that contradicts my description. Then STOP and wait for confirmation.
+
+Phase 1 - Risk and gap analysis (rank High/Med/Low):
+- Leakage: ThreadLocal not cleared, pooled-thread reuse, @Async / CompletableFuture / @Scheduled, @Transactional vs routing-datasource timing, caches/HZ maps/Caffeine keys missing region or user, static fields.
+- Authn/authz: missing or spoofed x-region, IDOR on record ids, global access, expired token mid-session, logout/revocation, CSRF with cookie auth, CORS with credentials, cookie flags (HttpOnly/Secure/SameSite), Next.js cookie forwarding (SSR/proxy).
+- Concurrency: optimistic locking (@Version), concurrent HZ updates, pool sizing, HikariCP per region.
+- Failure modes: LDAP down, region DB/HZ down, token expiry.
+- What is missing from my plan?
+
+Phase 2 - Design: Recommend classes/packages, libraries (with reasons + alternatives), request lifecycle, context propagation, config properties (claim mappings, TTLs, timeouts). Say whether converting AMToken into an internal JWT is worth it versus building Authentication directly. Give feasibility/effort/risk per piece and a safe incremental rollout order. Start with a dev-only redacted token diagnostic (segment count, header alg, claim NAMES only, never values) so we learn the real AMToken shape. Wait for approval.
+
+Phase 3 - Implement in small commits, with tests:
+- Unit: token resolver (valid/expired/tampered/missing/unknown claims), authz rules.
+- Integration (MockMvc + WireMock for LDAP): 401/403/503 paths.
+- Concurrency: N parallel requests with different users/regions/roles. Assert no cross-region data, correct log context, and ThreadLocals empty after each request.
+
+OUTPUT
+Concise bullets, name the exact files/classes, no generic security essays, mark assumptions. Ask only blocking questions, batched at the end of each phase.
