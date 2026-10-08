@@ -1,0 +1,1190 @@
+Backend Task: Staff DSP LDAP Authentication, Authorization and Multi-Region Request Isolation
+
+I am working on an existing Spring Boot backend application that supports multiple geographical regions from a single backend deployment.
+
+I am creating a new Git branch from the current implementation.
+
+The objective of this task is to replace/extend the current hardcoded authentication and authorization mechanism with a robust Staff DSP LDAP-based authentication and authorization architecture.
+
+This is a production-oriented security change.
+
+Do NOT immediately modify code.
+
+First inspect and understand the existing backend implementation, identify security/concurrency/context-isolation risks, propose the architecture, and only then implement the changes incrementally.
+
+The primary goal is:
+
+«Every HTTP request must be authenticated, authorized, region-isolated, user-isolated, thread-safe, and correctly logged.»
+
+Assume multiple users can send requests concurrently to different regions with different roles.
+
+The implementation must prevent any possibility of:
+
+- cross-user data leakage
+- cross-region data leakage
+- privilege escalation
+- role manipulation
+- PSID impersonation
+- stale SecurityContext
+- stale RegionContext
+- stale MDC
+- ThreadLocal leakage
+- authentication leakage between pooled threads
+- authorization leakage between requests
+- DB routing to the wrong region
+- Hazelcast routing to the wrong region
+
+---
+
+1. EXISTING APPLICATION ARCHITECTURE
+
+This is a single Spring Boot backend application.
+
+The backend supports 5 regions:
+
+- AP / Asia Pacific
+- NA / North America
+- ME / Middle East
+- CHINA
+- EU / Europe
+
+Each region has its own:
+
+- Oracle database
+- Hazelcast cluster
+
+The application has multiple application-property/profile configurations.
+
+Conceptually:
+
+Spring Boot Application
+         |
+         +---- AP DB + AP Hazelcast
+         |
+         +---- NA DB + NA Hazelcast
+         |
+         +---- ME DB + ME Hazelcast
+         |
+         +---- CHINA DB + CHINA Hazelcast
+         |
+         +---- EU DB + EU Hazelcast
+
+At application startup, region-specific configuration is loaded and data is initially loaded from the corresponding database and pushed into the corresponding Hazelcast cluster.
+
+Do not assume the exact implementation.
+
+Inspect the repository and identify:
+
+- configuration classes
+- property files
+- profiles
+- DataSource configuration
+- Hazelcast configuration
+- startup initialization
+- region-specific beans
+- routing logic
+
+---
+
+2. CURRENT REGION ROUTING
+
+Every HTTP request currently contains:
+
+X-Region
+
+The backend uses this header to determine which region should process the request.
+
+There are existing concepts/classes similar to:
+
+RegionContextHolder
+RegionRoutingFilter
+RegionDB configuration
+RegionHazelcast configuration
+
+The actual class names may differ.
+
+Conceptually:
+
+HTTP Request
+     |
+     v
+X-Region
+     |
+     v
+Region Routing
+     |
+     v
+Region Context
+     |
+     v
+Region DB + Hazelcast
+     |
+     v
+CRUD operation
+
+Inspect the actual implementation.
+
+Determine exactly:
+
+- where X-Region is read
+- how it is validated
+- where it is stored
+- whether ThreadLocal is used
+- how it reaches the service layer
+- how DataSource routing works
+- how Hazelcast routing works
+- how the context is cleaned up
+- what happens if an exception occurs
+
+---
+
+3. CURRENT AUTHENTICATION / AUTHORIZATION
+
+Authentication is currently partially hardcoded.
+
+There is a region-connect API.
+
+The current flow is approximately:
+
+Request
+   |
+   v
+Region Connect API
+   |
+   v
+Identify user
+   |
+   v
+Hardcoded authorization
+   |
+   +---- allowed regions
+   +---- role
+   +---- global access
+   |
+   v
+SecurityContext
+
+Roles currently include:
+
+MAKER
+CHECKER
+
+There is also a concept of:
+
+GLOBAL ACCESS
+
+A globally authorized user can access all configured regions.
+
+Currently, the user's ID is stored in the Spring Security context after region connection.
+
+This implementation is going to be replaced/strengthened using Staff DSP LDAP authentication.
+
+---
+
+4. NEW STAFF DSP LDAP REQUIREMENT
+
+We are introducing Staff DSP LDAP authentication.
+
+There is an API associated with Staff DSP/LDAP that provides user information.
+
+The information may include:
+
+- username
+- PSID
+- role
+- region access
+- other user authorization information
+
+The application will also receive an authentication cookie, currently referred to as:
+
+AMToken
+
+This cookie is expected to be sent with subsequent HTTP requests.
+
+IMPORTANT:
+
+The exact structure of AMToken is currently NOT fully known.
+
+There is existing LDAP-related code in the repository, but parts of it are currently commented out.
+
+The existing implementation appears to extract username/PSID-like information from the LDAP response.
+
+Before implementing anything:
+
+Inspect the existing LDAP-related code and determine what can actually be established from the repository.
+
+Do NOT automatically assume AMToken is a JWT.
+
+Determine whether it is:
+
+- JWT
+- opaque token
+- encrypted token
+- signed token
+- session identifier
+- another format
+
+If the repository does not provide enough information, explicitly identify this as an unresolved dependency.
+
+Do not invent:
+
+- signing algorithm
+- signing key
+- issuer
+- audience
+- token claims
+- token validation endpoint
+
+---
+
+5. MOST IMPORTANT SECURITY REQUIREMENT
+
+The backend must treat every HTTP request as independently authenticated.
+
+Do NOT rely on:
+
+"The user authenticated once earlier"
+
+unless there is a properly designed server-side session mechanism.
+
+The backend must be able to determine:
+
+WHO is making this request?
+
+Is the authentication valid?
+
+Has the authentication expired?
+
+What is the PSID?
+
+What roles does the user have?
+
+Which regions can the user access?
+
+Is the requested region allowed?
+
+Is the requested operation allowed for this user's role?
+
+---
+
+6. TRUST BOUNDARY
+
+Treat all frontend/request-provided values as untrusted.
+
+Examples:
+
+X-Region
+PSID
+username
+role
+allowedRegions
+globalAccess
+
+The frontend must NEVER be able to grant itself permissions.
+
+For example, if a user has:
+
+allowedRegions = [AP, EU]
+
+and sends:
+
+X-Region: NA
+
+the backend must reject the request.
+
+Do not trust:
+
+localStorage
+sessionStorage
+frontend state
+request body PSID
+request body role
+request body allowedRegions
+frontend globalAccess flag
+
+for authorization decisions.
+
+Authorization must come from a trusted authentication/authorization source.
+
+---
+
+7. TARGET REQUEST SECURITY FLOW
+
+Analyze the existing Spring Security architecture and design the correct flow.
+
+Conceptually, it should become something like:
+
+HTTP Request
+      |
+      v
+Authentication
+      |
+      | Read AMToken
+      | Validate authentication
+      | Establish authenticated principal
+      |
+      v
+Authorization
+      |
+      | Determine user
+      | Determine role
+      | Determine allowed regions
+      |
+      v
+Region Authorization
+      |
+      | Read X-Region
+      | Validate region
+      | Verify user has access
+      |
+      v
+Region Context
+      |
+      v
+Controller
+      |
+      v
+Service
+      |
+      v
+Region-specific DB/Hazelcast
+      |
+      v
+Response
+      |
+      v
+Context cleanup
+
+Do not blindly implement this exact flow.
+
+Use the existing codebase and Spring Security architecture to determine the safest implementation.
+
+---
+
+8. SPRING SECURITY ANALYSIS
+
+Inspect the current Spring Security implementation.
+
+Identify:
+
+- SecurityFilterChain
+- authentication filters
+- authorization filters
+- SecurityContext configuration
+- authentication objects
+- AuthenticationProvider
+- custom principals
+- OncePerRequestFilter
+- exception handlers
+- access-denied handlers
+- session configuration
+- stateless/stateful configuration
+
+Determine the correct Spring Security architecture for the new implementation.
+
+Prefer standard Spring Security mechanisms over custom security implementations.
+
+Evaluate whether we should use:
+
+- custom AuthenticationToken
+- AuthenticationProvider
+- OncePerRequestFilter
+- custom principal
+- AuthorizationManager
+- method-level authorization
+- @PreAuthorize
+- centralized authorization service
+
+Explain why.
+
+---
+
+9. AUTHENTICATED USER MODEL
+
+I want a strongly typed representation of the authenticated user.
+
+Evaluate whether we should introduce something similar to:
+
+ApplicationUserPrincipal
+
+Potential information:
+
+psid
+username
+roles
+allowedRegions
+globalAccess
+
+Do not store mutable request-specific region state inside the principal unless there is a strong architectural reason.
+
+The principal answers:
+
+WHO is the user?
+
+The region context answers:
+
+WHICH region is this request targeting?
+
+Keep those concepts separate.
+
+---
+
+10. REGION AUTHORIZATION
+
+Create a centralized region authorization mechanism.
+
+For every request:
+
+requestedRegion = X-Region
+
+Then verify:
+
+requestedRegion is valid
+
+AND
+
+authenticatedUser is authorized for requestedRegion
+
+AND
+
+requestedRegion is available if availability checking is required
+
+Only after this succeeds should region-specific DB/Hazelcast access occur.
+
+Do not allow:
+
+X-Region
+
+to directly select a database before authorization.
+
+This is a critical requirement.
+
+---
+
+11. REGION ENUM / CANONICALIZATION
+
+Inspect how regions are currently represented.
+
+If appropriate, introduce a canonical representation such as:
+
+AP
+NA
+ME
+CHINA
+EU
+
+Avoid scattered string comparisons throughout the application.
+
+Handle:
+
+- null region
+- empty region
+- whitespace
+- invalid region
+- case differences
+- aliases
+- malformed headers
+- duplicate X-Region headers
+
+Determine the safest behavior.
+
+---
+
+12. GLOBAL ACCESS
+
+There is currently a concept of global access.
+
+A global user may access all valid configured regions.
+
+However:
+
+globalAccess = true
+
+must originate from a trusted authorization source.
+
+Never accept:
+
+X-Global-Access: true
+
+or similar frontend-provided information as authorization.
+
+Also determine what happens when:
+
+- a new region is introduced
+- a region is disabled
+- DB is unavailable
+- Hazelcast is unavailable
+
+---
+
+13. REGION SWITCHING
+
+Users must be able to switch between authorized regions without logging out.
+
+Example:
+
+User:
+    PSID = P123
+
+Authorized:
+    AP
+    EU
+    ME
+
+Current region:
+
+AP
+
+User switches to:
+
+EU
+
+The next request contains:
+
+X-Region: EU
+
+The backend must independently authenticate the user and verify EU access.
+
+There must NOT be a mutable global backend state such as:
+
+currentUserRegion
+
+Do NOT store selected region in:
+
+- static variable
+- singleton mutable field
+- global user map
+- application-wide state
+
+The selected region should be request-scoped.
+
+---
+
+14. SECURITY CONTEXT VS REGION CONTEXT
+
+Maintain a clear separation:
+
+SecurityContext
+    -> authenticated identity
+
+RegionContext
+    -> current request region
+
+MDC
+    -> logging information
+
+Never merge these into one mutable global context.
+
+---
+
+15. THREADLOCAL ANALYSIS
+
+Inspect every use of:
+
+ThreadLocal
+
+especially:
+
+RegionContextHolder
+
+Determine:
+
+- who sets it
+- who reads it
+- who clears it
+- whether cleanup occurs in finally
+- whether exceptions skip cleanup
+- whether async execution uses it
+- whether executor threads reuse it
+
+This is a major security concern.
+
+A thread is NOT a user.
+
+A thread is NOT a region.
+
+Example:
+
+Request A
+    PSID=A
+    Region=AP
+    Thread=Thread-5
+
+followed by:
+
+Request B
+    PSID=B
+    Region=EU
+    Thread=Thread-5
+
+must never inherit:
+
+PSID=A
+Region=AP
+
+from Request A.
+
+---
+
+16. THREAD POOLS
+
+The current application has region-specific thread pools / worker threads.
+
+Analyze whether this architecture is actually required.
+
+For example:
+
+AP thread pool
+NA thread pool
+ME thread pool
+CHINA thread pool
+EU thread pool
+
+Determine:
+
+- why these pools exist
+- pool size
+- queue behavior
+- rejection policy
+- lifecycle
+- shutdown
+- DB connection pool interaction
+- Hazelcast interaction
+- async execution
+- CompletableFuture behavior
+- context propagation
+
+Most importantly:
+
+Determine whether region-specific thread pools create unnecessary context-isolation risk.
+
+Evaluate whether a simpler architecture using Spring-managed request threads + request-scoped region routing would be safer.
+
+Do not remove the current architecture without evidence.
+
+If retaining it, prove that it is safe.
+
+---
+
+17. ASYNC CONTEXT PROPAGATION
+
+Inspect all:
+
+- CompletableFuture
+- @Async
+- ExecutorService
+- ThreadPoolExecutor
+- Runnable
+- Callable
+- scheduled tasks
+
+Determine whether SecurityContext and RegionContext are propagated.
+
+Do NOT blindly propagate mutable ThreadLocal state.
+
+If context propagation is required, recommend a safe explicit mechanism.
+
+Also determine whether asynchronous tasks should be allowed to use request-specific region context at all.
+
+---
+
+18. DATABASE ROUTING
+
+Inspect how the application routes to region-specific Oracle DBs.
+
+Determine whether it uses:
+
+- AbstractRoutingDataSource
+- ThreadLocal lookup key
+- multiple DataSources
+- EntityManager routing
+- custom repository routing
+- transaction-bound routing
+
+Verify:
+
+X-Region = EU
+
+can ONLY reach:
+
+EU DB
+
+after authorization.
+
+Investigate transaction safety.
+
+Critical scenario:
+
+Request = EU
+
+Transaction begins
+
+DB operation 1 -> EU
+
+Region context accidentally changes
+
+DB operation 2 -> AP
+
+This must be impossible.
+
+Region should be immutable during a request/transaction.
+
+---
+
+19. HAZELCAST ROUTING
+
+Inspect how region-specific Hazelcast clusters are selected.
+
+Determine:
+
+- singleton clients
+- HazelcastInstance beans
+- maps
+- cache keys
+- cluster configuration
+- region selection
+
+Verify:
+
+EU request -> EU Hazelcast
+
+and never:
+
+EU request -> AP Hazelcast
+
+Investigate concurrency and stale context issues.
+
+---
+
+20. AUTHORIZATION CACHING
+
+Determine whether user authorization data should be cached.
+
+For example:
+
+PSID
+   |
+   +-- roles
+   +-- regions
+   +-- globalAccess
+
+If caching is proposed, analyze:
+
+- TTL
+- invalidation
+- role changes
+- region access changes
+- token expiry
+- revocation
+- concurrent requests
+- stale authorization
+
+Security correctness is more important than performance.
+
+Do not add an authorization cache just for performance.
+
+---
+
+21. COOKIE / AMTOKEN
+
+Analyze the AMToken cookie implementation.
+
+Determine:
+
+- where it is extracted
+- whether it is HttpOnly
+- whether it is Secure
+- SameSite
+- Path
+- Domain
+- expiration
+- whether backend receives it on every request
+
+Do not log the cookie.
+
+If the token is JWT, validate it correctly.
+
+If it is opaque, determine the appropriate validation/introspection mechanism.
+
+If the token cannot be validated locally, identify what trusted service must be contacted.
+
+---
+
+22. JWT REQUIREMENTS IF AMTOKEN IS JWT
+
+Only if AMToken is confirmed to be a JWT, analyze:
+
+- signature validation
+- trusted algorithm
+- issuer
+- audience
+- expiration
+- not-before
+- key rotation
+- signing keys
+- algorithm confusion
+- malformed token handling
+- claim validation
+
+Never simply decode a JWT and trust its payload.
+
+Base authorization on verified claims only.
+
+---
+
+23. IF AMTOKEN IS OPAQUE
+
+If AMToken is opaque:
+
+Determine whether Staff DSP provides:
+
+- introspection endpoint
+- session validation endpoint
+- user-info endpoint
+- authorization endpoint
+
+Analyze:
+
+- validation latency
+- caching
+- revocation
+- expiration
+- failure handling
+- availability dependency
+
+Do not invent a local JWT conversion mechanism.
+
+---
+
+24. IMPORTANT QUESTION: JWT CONVERSION
+
+There is existing thinking around:
+
+AMToken
+   |
+   v
+Extract username/PSID
+   |
+   v
+Create internal JWT
+   |
+   v
+Spring Security
+
+Do NOT assume this is automatically safe.
+
+Analyze whether converting an external authentication token into an internal JWT is necessary.
+
+If proposing this architecture, explain:
+
+- what validates the original AMToken
+- what establishes trust
+- what signs the internal JWT
+- key management
+- expiration
+- revocation
+- audience
+- issuer
+- refresh behavior
+- replay protection
+- authorization freshness
+
+Prefer avoiding unnecessary token translation if Spring Security can authenticate the external identity directly.
+
+---
+
+25. MAKER / CHECKER AUTHORIZATION
+
+Inspect all existing Maker/Checker logic.
+
+Create a real backend authorization model.
+
+The frontend must NOT be trusted.
+
+For example:
+
+Hiding "Approve" button
+
+is not security.
+
+A user must not be able to manually call:
+
+POST /approve
+
+unless backend authorization allows it.
+
+Determine actual permissions from the repository.
+
+Create a permission matrix:
+
+endpoint
+HTTP method
+required role
+region requirement
+operation
+
+Do not invent business rules.
+
+---
+
+26. PSID IMPERSONATION
+
+Explicitly test this.
+
+If request body contains:
+
+psid = USER_B
+
+while authenticated identity is:
+
+USER_A
+
+the backend must not use USER_B to authorize the operation.
+
+Authentication identity should come from the trusted authentication mechanism.
+
+Request-body identity fields must not override authenticated identity.
+
+---
+
+27. LOGGING / MDC
+
+The application currently logs:
+
+- user ID
+- region
+
+using Log4j configuration.
+
+Preserve this functionality but make it robust.
+
+Recommended context:
+
+requestId
+psid
+region
+role
+
+Example:
+
+requestId=REQ123
+psid=P123
+region=EU
+role=MAKER
+
+Every request must establish its own logging context.
+
+Every request must clean it up.
+
+Use:
+
+try/finally
+
+where necessary.
+
+Never log:
+
+- AMToken
+- Cookie header
+- full JWT
+- credentials
+- secrets
+- LDAP authentication payload
+- DB passwords
+- Hazelcast credentials
+
+---
+
+28. REQUEST CORRELATION ID
+
+Check whether the application already has a request/correlation ID.
+
+If not, consider adding one.
+
+It should allow:
+
+one request
+
+to be traced across:
+
+filter
+controller
+service
+DB
+Hazelcast
+exception
+
+If the client supplies a correlation ID, determine whether it should be accepted or replaced/sanitized.
+
+---
+
+29. ERROR HANDLING
+
+Define correct responses for:
+
+missing authentication
+invalid authentication
+expired authentication
+malformed AMToken
+unauthorized region
+unauthorized role
+forbidden operation
+invalid region
+DB failure
+Hazelcast failure
+
+Use:
+
+401 -> unauthenticated
+
+403 -> authenticated but forbidden
+
+Do not leak internal infrastructure information.
+
+---
+
+30. CORS / CSRF
+
+Because authentication may be cookie-based, explicitly review:
+
+- CORS
+- credentials
+- allowed origins
+- allowed headers
+- X-Region
+- OPTIONS
+- CSRF
+
+Determine whether CSRF protection is required.
+
+Do not simply disable CSRF without understanding the authentication model.
+
+If the application uses cookies for authentication, explicitly assess CSRF risk.
+
+---
+
+31. SPRING SESSION / STATEFUL VS STATELESS
+
+Determine whether the application is currently:
+
+stateful session-based
+
+or:
+
+stateless token-based
+
+Do not mix the two accidentally.
+
+Explain:
+
+- SecurityContext lifecycle
+- HTTP session usage
+- token authentication
+- session fixation
+- concurrent sessions
+- logout
+- token expiration
+
+Choose the model appropriate for Staff DSP authentication.
+
+---
+
+32. SECURITY FILTER ORDER
+
+Inspect the current filter chain and determine exact ordering for:
+
+- CORS
+- authentication
+- AMToken extraction
+- SecurityContext
+- region extraction
+- region authorization
+- MDC
+- request logging
+- exception handling
+- controller execution
+- cleanup
+
+Do not blindly add filters.
+
+Explain why each filter exists and where it executes.
+
+---
+
+33. REQUEST LIFECYCLE
+
+Document the final request lifecycle.
+
+For example:
+
+HTTP request
+    |
+    v
+Request ID
+    |
+    v
+AMToken authentication
+    |
+    v
+SecurityContext
+    |
+    v
+Authorization
+    |
+    v
+X-Region validation
+    |
+    v
+Region authorization
+    |
+    v
+RegionContext
+    |
+    v
+MDC
+    |
+    v
+Controller
+    |
+    v
+Service
+    |
+    v
+Region DB/Hazelcast
+    |
+    v
+Response
+    |
+    v
+finally:
+   clear RegionContext
+   clear MDC
+   SecurityContext lifecycle cleanup
+
+Modify this according to the actual architecture.
+
+---
+
+34. CONCURRENT USER SCENARIO
+
+Assume these users are active simultaneously:
+
+User A:
+
+PSID=A
+role=MAKER
+regions=[AP, EU]
+
+User B:
+
+PSID=B
+role=CHECKER
+regions=[NA]
+
+User C:
+
+PSID=C
+role=MAKER
+regions=[ME, CHINA]
+
+Requests can arrive concurren
